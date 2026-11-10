@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consola Freshdesk</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--ink:#1d2330;--muted:#6b7385;--line:#e3e6ec;--accent:#1f6feb;--accent-ink:#fff;
+--ok:#1a7f37;--warn:#9a6700;--bad:#cf222e;--chip:#eef1f6;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1218;--panel:#171b23;--ink:#e6e9ef;--muted:#9aa3b5;--line:#2a303c;--chip:#222836;--accent:#4c8dff}}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+header h1{font-size:16px;margin:0;font-weight:650}
+.conn{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto}
+input,select,textarea,button{font:inherit;color:inherit}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 9px}
+textarea{font-family:var(--mono);font-size:12.5px;width:100%;min-height:110px}
+button{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 12px;cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:disabled{opacity:.5;cursor:default}
+.status{font-size:12px;color:var(--muted)}.status b.ok{color:var(--ok)}.status b.bad{color:var(--bad)}
+nav{display:flex;gap:2px;padding:0 20px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto}
+nav button{border:0;border-bottom:2px solid transparent;border-radius:0;padding:10px 14px;background:none;color:var(--muted)}
+nav button.on{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+main{padding:18px 20px;max-width:1400px;margin:0 auto}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.bar label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:600;background:var(--bg);position:sticky;top:0}
+th.sortable{cursor:pointer;user-select:none;white-space:nowrap}th.sortable:hover{color:var(--ink)}th.sorted{color:var(--accent)}
+tr.click{cursor:pointer}tr.click:hover td{background:var(--chip)}
+.chip{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--chip);font-size:12px;white-space:nowrap}
+.s2{color:var(--accent)}.s3{color:var(--warn)}.s4,.s5{color:var(--ok)}.p3,.p4{color:var(--bad)}
+.muted{color:var(--muted)}.mono{font-family:var(--mono);font-size:12.5px}
+.pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:10px}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+.err{background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad);border:1px solid color-mix(in srgb,var(--bad) 35%,transparent);padding:10px 12px;border-radius:8px;margin-bottom:12px;white-space:pre-wrap}
+pre{margin:0;padding:12px;font-family:var(--mono);font-size:12.5px;overflow:auto;max-height:70vh;white-space:pre-wrap;word-break:break-word}
+.drawer{position:fixed;inset:0 0 0 auto;width:min(760px,100%);background:var(--panel);border-left:1px solid var(--line);box-shadow:-10px 0 30px rgba(0,0,0,.15);z-index:10;display:none;flex-direction:column}
+.drawer.on{display:flex}.drawer .hd{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.drawer .bd{overflow:auto;padding:16px 18px;flex:1}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:6px 12px;margin-bottom:16px}
+.kv div:nth-child(odd){color:var(--muted)}
+.msg{border:1px solid var(--line);border-radius:8px;margin-bottom:10px}
+.msg .mh{padding:6px 10px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px}
+.msg .mb{padding:10px;overflow:auto}.msg.private{border-style:dashed}
+.msg .mb img{max-width:100%}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+.hint{font-size:12px;color:var(--muted);margin:6px 0 0}
+.toolbar-right{margin-left:auto;display:flex;gap:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Consola Freshdesk</h1>
+  <div class="conn">
+    <input id="domain" placeholder="miempresa.freshdesk.com" size="24" autocomplete="off">
+    <input id="apikey" type="password" placeholder="API key" size="26" autocomplete="off">
+    <label class="status" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="remember"> Recordar</label>
+    <button class="primary" id="connect">Conectar</button>
+    <span class="status" id="connStatus">Sin conectar</span>
+  </div>
+</header>
+<nav id="tabs">
+  <button data-tab="panel" class="on">Panel de respuestas</button>
+  <button data-tab="tickets">Tickets</button>
+  <button data-tab="search">Búsqueda avanzada</button>
+  <button data-tab="contacts">Contactos</button>
+  <button data-tab="companies">Empresas</button>
+  <button data-tab="agents">Agentes</button>
+  <button data-tab="groups">Grupos</button>
+  <button data-tab="more">Más recursos</button>
+  <button data-tab="console">Consola API</button>
+</nav>
+<main id="main"></main>
+
+<div class="drawer" id="drawer">
+  <div class="hd"><strong id="dTitle">Detalle</strong><span class="toolbar-right"><button id="dRaw">JSON</button><button id="dClose">Cerrar</button></span></div>
+  <div class="bd" id="dBody"></div>
+</div>
+
+<script>
+const STATUS={2:"Abierto",3:"Pendiente",4:"Resuelto",5:"Cerrado"};
+const PRIORITY={1:"Baja",2:"Media",3:"Alta",4:"Urgente"};
+const SOURCE={1:"Email",2:"Portal",3:"Teléfono",7:"Chat",9:"Widget de feedback",10:"Email saliente"};
+const ASSOC={1:"Padre",2:"Hijo",3:"Tracker",4:"Relacionado"};
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const fmtDate=v=>{if(!v)return"";const d=new Date(v);if(isNaN(d))return String(v);return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
+const isoToDMY=s=>s?String(s).slice(0,10).split("-").reverse().join("/"):"";
+function parseDMY(v){const m=/^\s*(\d{1,2})\/(\d{1,2})\/(\d{4})\s*$/.exec(v||"");if(!m)return null;const d=+m[1],mo=+m[2],y=+m[3];const t=new Date(y,mo-1,d);if(t.getFullYear()!==y||t.getMonth()!==mo-1||t.getDate()!==d)return null;return `${y}-${pad(mo)}-${pad(d)}`}
+const isoLocalStart=iso=>new Date(iso+"T00:00:00").toISOString();
+const cache={agents:null,groups:null,fields:null,companies:{}};
+let envKey=false;
+
+function store(){try{return window.localStorage}catch(e){return null}}
+function loadCreds(){const s=store();if(!s)return;try{const c=JSON.parse(s.getItem("fdc")||"{}");if(c.domain)$("#domain").value=c.domain;if(c.key){$("#apikey").value=c.key;$("#remember").checked=true}}catch(e){}}
+function saveCreds(){const s=store();if(!s)return;try{if($("#remember").checked)s.setItem("fdc",JSON.stringify({domain:$("#domain").value,key:$("#apikey").value}));else s.setItem("fdc",JSON.stringify({domain:$("#domain").value}))}catch(e){}}
+
+function normDomain(v){let d=(v||"").trim().toLowerCase().replace(/^https?:\/\//,"").split("/")[0];if(d.endsWith(".freshdesk.com"))d=d.slice(0,-14);return /^[a-z0-9][a-z0-9-]{0,62}$/.test(d)?d:null}
+async function api(path,{method="GET",body}={}){
+  const d=normDomain($("#domain").value),k=$("#apikey").value.trim();
+  const fake=(msg)=>({ok:false,status:0,data:{proxy_error:msg},ms:0,link:"",hasNext:false,headers:{get:()=>null}});
+  if(!d)return fake("Dominio de Freshdesk inválido o vacío (ej.: miempresa.freshdesk.com).");
+  if(!k)return fake("Falta la API key.");
+  const base=`https://${d}.freshdesk.com`;
+  const headers={"Authorization":"Basic "+btoa(unescape(encodeURIComponent(k+":X"))),"Accept":"application/json"};
+  if(body!==undefined)headers["Content-Type"]="application/json";
+  const t0=performance.now();let r;
+  try{r=await fetch(base+path,{method,headers,body:body===undefined?undefined:(typeof body==="string"?body:JSON.stringify(body))})}
+  catch(e){return fake(`No se pudo conectar con ${base}. Revisa el dominio y tu conexión. Si el dominio es correcto, el navegador pudo bloquear la llamada (CORS): abre esta página desde un servidor web (http://) en vez de hacer doble clic en el archivo.`)}
+  const ms=Math.round(performance.now()-t0);
+  const text=await r.text();let data;try{data=text?JSON.parse(text):null}catch(e){data=text}
+  const hd={get:n=>r.headers.get(String(n).replace(/^X-Up-/i,""))};
+  const H=n=>hd.get(n);
+  const rem=H("x-ratelimit-account-remaining")||H("x-ratelimit-remaining"),tot=H("x-ratelimit-account-total")||H("x-ratelimit-total");
+  const subR=H("x-ratelimit-sublimit-remaining"),subT=H("x-ratelimit-sublimit-total");
+  if(rem)$("#connStatus").innerHTML=($("#connStatus").dataset.ok?'<b class="ok">Conectado</b> · ':"")+`Límite/min: ${esc(rem)}/${esc(tot||"?")}`+(subR?` · sublímite ${esc(subR)}/${esc(subT||"?")}`:"");
+  const link=H("link")||"";
+  return {ok:r.ok,status:r.status,data,ms,link,hasNext:/rel="next"/.test(link)||(Array.isArray(data)&&new URLSearchParams(path.split("?")[1]||"").get("per_page")==data.length),headers:hd};
+}
+const HTTP_HINT={
+  400:"Error de validación o formato en la petición.",
+  401:"Credenciales inválidas. Revisa la API key (Perfil → Configuración de perfil, debajo de cambiar contraseña).",
+  403:"Acceso denegado: tu rol no tiene permiso, la función no está en tu plan, o la cuenta está bloqueada.",
+  404:"Recurso o URL no encontrada.",
+  405:"Método no permitido (también ocurre al modificar tickets en spam/eliminados o contactos bloqueados).",
+  406:"Cabecera Accept no soportada.",
+  409:"Conflicto de estado (por ejemplo, email duplicado).",
+  415:"Tipo de contenido no soportado.",
+  429:"Has superado el límite de peticiones por minuto de la cuenta.",
+  500:"Error interno de Freshdesk. Reintenta más tarde."};
+function errText(res){
+  const d=res.data;
+  if(d&&d.proxy_error)return d.proxy_error;
+  let s=`${res.status} · ${HTTP_HINT[res.status]||"Error"}`;
+  if(res.status===429){const ra=res.headers.get("X-Up-retry-after");if(ra)s+=` Reintenta en ${ra} s.`}
+  if(d&&typeof d==="object"){
+    if(d.description)s+=`\n${d.description}`;
+    if(Array.isArray(d.errors))s+="\n"+d.errors.map(e=>`• ${e.field?e.field+": ":""}${e.message||""}${e.code?` [${e.code}]`:""}`).join("\n");
+    if(!d.description&&!d.errors)s+="\n"+JSON.stringify(d,null,2);
+  }else if(d)s+="\n"+d;
+  return s;
+}
+
+async function fetchAll(path){let out=[],page=1;while(page<=20){const r=await api(`${path}${path.includes("?")?"&":"?"}per_page=100&page=${page}`);if(!r.ok||!Array.isArray(r.data))break;out=out.concat(r.data);if(r.data.length<100)break;page++}return out}
+async function pool(items,fn,n=3){const q=[...items];await Promise.all(Array.from({length:Math.min(n,q.length)},async()=>{while(q.length)await fn(q.shift())}))}
+// Nombres de empresas y de agentes que no estén en la lista (p. ej. desactivados), bajo demanda
+async function ensureNames(rows){
+  cache.agents=cache.agents||{};
+  const cids=[...new Set(rows.map(t=>t.company_id).filter(id=>id&&!(id in cache.companies)))];
+  const aids=[...new Set(rows.map(t=>t.responder_id).filter(id=>id&&!(id in cache.agents)))];
+  await Promise.all([
+    pool(cids,async id=>{const r=await api(`/api/v2/companies/${id}`);cache.companies[id]=r.ok?r.data.name:`Empresa ${id}`}),
+    pool(aids,async id=>{const r=await api(`/api/v2/agents/${id}`);cache.agents[id]=r.ok?(r.data.contact?.name||r.data.contact?.email||`Agente ${id}`):`Agente ${id} (inactivo)`})]);
+}
+const companyOf=t=>t.company_id?(cache.companies[t.company_id]??"…"):"—";
+const respOf=t=>t.responder_id?(cache.agents?.[t.responder_id]??"…"):"Sin asignar";
+const groupOf=t=>t.group_id?(cache.groups?.[t.group_id]??`Grupo ${t.group_id}`):"";
+const respCell=t=>`${t.responder_id?esc(respOf(t)):'<span class="muted">Sin asignar</span>'}${groupOf(t)?`<div class="muted" style="font-size:11px">${esc(groupOf(t))}</div>`:""}`;
+async function loadLookups(){
+  if(!cache.agents)cache.agents=Object.fromEntries((await fetchAll("/api/v2/agents")).map(a=>[a.id,a.contact?.name||a.contact?.email||a.id]));
+  if(!cache.groups)cache.groups=Object.fromEntries((await fetchAll("/api/v2/groups")).map(g=>[g.id,g.name]));
+  if(!cache.fields){
+    // Estados personalizados: se leen de los campos de ticket
+    const r=await api("/api/v2/ticket_fields");cache.fields=r.ok?r.data:[];
+    const st=cache.fields.find(f=>f.name==="status");
+    if(st&&st.choices&&!Array.isArray(st.choices))for(const[k,v]of Object.entries(st.choices))STATUS[k]=Array.isArray(v)?v[0]:v;
+  }
+}
+
+$("#connect").onclick=async()=>{
+  saveCreds();cache.agents=cache.groups=cache.fields=null;cache.companies={};P.statuses=null;P.tickets=null;convCache.clear();
+  const st=$("#connStatus");st.textContent="Conectando…";delete st.dataset.ok;
+  const r=await api("/api/v2/agents/me");
+  if(r.ok){st.dataset.ok="1";st.innerHTML=`<b class="ok">Conectado</b> como ${esc(r.data.contact?.name||r.data.contact?.email)}`;await loadLookups();render()}
+  else{st.innerHTML=`<b class="bad">Error</b> ${esc(errText(r).split("\n")[0])}`}
+};
+
+/* ---------- tabs ---------- */
+let tab="panel";
+document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;document.querySelectorAll("#tabs button").forEach(x=>x.classList.toggle("on",x===b));render()});
+function render(){({panel:renderPanel,tickets:renderTickets,search:renderSearch,contacts:()=>renderSimple("contacts"),companies:()=>renderSimple("companies"),agents:()=>renderSimple("agents"),groups:()=>renderSimple("groups"),more:renderMore,console:renderConsole})[tab]()}
+
+/* ---------- panel de respuestas ---------- */
+const P={tickets:null,page:1,per:25,since:"",statuses:null,includeNotes:false,sortKey:"updated",sortDir:"desc",q:"",loading:false,maxPages:10};
+const convCache=new Map(); // id -> {updated_at, convs}
+function monthsAgo(n){const d=new Date();d.setMonth(d.getMonth()-n);return d.toISOString().slice(0,10)}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function apiRetry(path){
+  for(let i=0;i<4;i++){
+    const r=await api(path);
+    if(r.status!==429)return r;
+    const ra=+(r.headers.get("X-Up-retry-after")||0);
+    $("#pProg").textContent=`Límite de la API alcanzado; esperando ${ra||20} s…`;
+    await sleep(((ra||20)+1)*1000);
+  }
+  return api(path);
+}
+async function getConversations(t){
+  const c=convCache.get(t.id);
+  if(c&&c.updated_at===t.updated_at)return c.convs;
+  let all=[],page=1;
+  while(true){
+    const r=await apiRetry(`/api/v2/tickets/${t.id}/conversations?per_page=100&page=${page}`);
+    if(!r.ok){convCache.set(t.id,{updated_at:t.updated_at,error:errText(r).split("\n")[0]});return null}
+    all=all.concat(r.data);
+    if(r.data.length<100)break; page++;
+  }
+  convCache.set(t.id,{updated_at:t.updated_at,convs:all});
+  return all;
+}
+function firstParagraph(html,text){
+  const doc=new DOMParser().parseFromString(html||"","text/html");
+  doc.querySelectorAll("blockquote,.freshdesk_quote,.gmail_quote,.gmail_extra,style,script").forEach(n=>n.remove());
+  const blocks=[...doc.body.querySelectorAll("p,div,li,h1,h2,h3,h4,td")].filter(n=>!n.querySelector("p,div,li,td"));
+  for(const b of blocks){const s=b.textContent.replace(/\s+/g," ").trim();if(s&&!/^(hola|buen[oa]s?( días| tardes| noches)?|estimad[oa]s?|hi|hello|dear)\b[^.!?]{0,40}[,:]?$/i.test(s))return s}
+  const t=(text||doc.body.textContent||"").split(/\n\s*\n/).map(x=>x.replace(/\s+/g," ").trim()).filter(Boolean);
+  return t.find(x=>!/^(hola|buen[oa]s?|estimad[oa]s?|hi|hello|dear)\b.{0,40}$/i.test(x))||t[0]||"";
+}
+function summarize(convs){
+  const pub=convs.filter(m=>P.includeNotes||!m.private);
+  const fromCli=pub.filter(m=>m.incoming).length;
+  const last=pub.length?pub.reduce((a,b)=>new Date(b.created_at)>new Date(a.created_at)?b:a):null;
+  return {total:pub.length,cli:fromCli,ag:pub.length-fromCli,last};
+}
+function who(m){if(!m)return"";if(m.incoming)return"Cliente";return(cache.agents?.[m.user_id])||"Agente"}
+
+function renderPanel(){
+  if(!P.statuses)P.statuses=new Set(Object.keys(STATUS).filter(k=>k!=="4"&&k!=="5"));
+  if(!P.since)P.since=monthsAgo(6);
+  $("#main").innerHTML=`<div class="bar">
+    <label>Estados<span id="pSt" style="display:flex;gap:10px;flex-wrap:wrap;padding:6px 0"></span></label>
+    <label>Actualizados desde<input id="pSince" size="11" placeholder="DD/MM/AAAA" value="${isoToDMY(P.since)}"></label>
+    <label>Por página<select id="pPer"><option>10</option><option>25</option><option>50</option><option>100</option></select></label>
+    <label>Buscar (asunto, solicitante, empresa, responsable)<input id="pQ" size="26" placeholder="texto…" value="${esc(P.q)}"></label>
+    <label style="flex-direction:row;align-items:center;gap:6px;align-self:flex-end;padding-bottom:6px"><input type="checkbox" id="pNotes" ${P.includeNotes?"checked":""}> Contar notas privadas</label>
+    <button class="primary" id="pLoad" style="align-self:flex-end">Actualizar</button>
+    <button id="pAll" style="align-self:flex-end" title="Consulta la conversación de todos los tickets filtrados (1 petición por ticket)">Cargar respuestas de todos</button>
+    <button id="pCsv" style="align-self:flex-end">Exportar CSV</button>
+  </div>
+  <div class="status" id="pProg" style="margin-bottom:8px"></div>
+  <div id="pErr"></div><div class="card" id="pOut"><div class="empty">${$("#connStatus").dataset.ok?"Cargando…":"Conéctate para ver el panel."}</div></div>`;
+  $("#pSt").innerHTML=Object.entries(STATUS).map(([k,v])=>`<label style="flex-direction:row;gap:4px;color:var(--ink);font-size:13px"><input type="checkbox" value="${k}" ${P.statuses.has(k)?"checked":""}>${esc(v)}</label>`).join("");
+  $("#pPer").value=P.per;
+  $("#pSt").onchange=()=>{P.statuses=new Set([...$("#pSt").querySelectorAll("input:checked")].map(i=>i.value));P.page=1;drawPanel()};
+  $("#pPer").onchange=()=>{P.per=+$("#pPer").value;P.page=1;drawPanel()};
+  $("#pQ").oninput=()=>{P.q=$("#pQ").value;P.page=1;drawPanel()};
+  $("#pNotes").onchange=()=>{P.includeNotes=$("#pNotes").checked;drawPanel()};
+  $("#pLoad").onclick=()=>{const v=parseDMY($("#pSince").value);if(!v){$("#pErr").innerHTML='<div class="err">Fecha inválida. Usa el formato DD/MM/AAAA.</div>';return}P.since=v;P.tickets=null;P.page=1;loadPanel()};
+  $("#pAll").onclick=loadAllConversations;
+  $("#pCsv").onclick=exportCsv;
+  if(!$("#connStatus").dataset.ok)return;
+  if(P.tickets)drawPanel();else loadPanel();
+}
+async function loadPanel(){
+  if(P.loading)return;P.loading=true;$("#pErr").innerHTML="";
+  const all=[];let page=1,more=true,capped=false;
+  const since=isoLocalStart(P.since||monthsAgo(6));
+  try{
+    while(more){
+      $("#pProg").textContent=`Cargando tickets… página ${page} (${all.length} tickets)`;
+      const r=await apiRetry(`/api/v2/tickets?per_page=100&page=${page}&updated_since=${encodeURIComponent(since)}&order_by=updated_at&order_type=desc&include=requester`);
+      if(!r.ok){$("#pErr").innerHTML=`<div class="err">${esc(errText(r))}</div>`;break}
+      all.push(...r.data);more=r.hasNext&&r.data.length>0;page++;
+      if(more&&page>P.maxPages){capped=true;break}
+    }
+  }finally{P.loading=false}
+  P.tickets=all;P.capped=capped;
+  drawPanel();
+}
+/* Columnas del panel: clave, título, tipo (para el sentido por defecto), valor para ordenar */
+const sumOf=t=>{const c=convCache.get(t.id);return c&&c.convs?summarize(c.convs):null};
+const reqOf=t=>t.requester?.name||t.requester?.email||String(t.requester_id||"");
+const PCOLS=[
+  ["id","#","num",t=>t.id],
+  ["subject","Asunto","text",t=>t.subject||""],
+  ["company","Empresa","text",t=>t.company_id?(cache.companies[t.company_id]??null):null],
+  ["status","Estado","text",t=>STATUS[t.status]||String(t.status)],
+  ["priority","Prioridad","num",t=>t.priority],
+  ["requester","Solicitante","text",reqOf],
+  ["resp","Responsable","text",t=>t.responder_id?(cache.agents?.[t.responder_id]??null):null],
+  ["group","Grupo","text",t=>groupOf(t)||null],
+  ["updated","Actualizado","date",t=>t.updated_at],
+  ["replies","Respuestas","num",t=>{const s=sumOf(t);return s?s.total:null}],
+  ["last","Última respuesta","date",t=>{const s=sumOf(t);return s&&s.last?s.last.created_at:null}],
+];
+function cmpVals(a,b,type){
+  if(type==="num")return a-b;
+  if(type==="date")return new Date(a)-new Date(b);
+  return String(a).localeCompare(String(b),"es",{sensitivity:"base",numeric:true});
+}
+function panelList(){
+  let l=(P.tickets||[]).filter(t=>P.statuses.has(String(t.status)));
+  if(P.q){const q=P.q.toLowerCase();l=l.filter(t=>(t.subject+" "+reqOf(t)+" "+(t.requester?.email||"")+" "+t.id+" "+companyOf(t)+" "+respOf(t)+" "+groupOf(t)).toLowerCase().includes(q))}
+  const col=PCOLS.find(c=>c[0]===P.sortKey)||PCOLS[8];
+  const dir=P.sortDir==="asc"?1:-1;
+  // Los valores vacíos o aún no cargados siempre van al final
+  l.sort((a,b)=>{const x=col[3](a),y=col[3](b);const nx=x===null||x===""||x===undefined,ny=y===null||y===""||y===undefined;
+    if(nx&&ny)return new Date(b.updated_at)-new Date(a.updated_at);if(nx)return 1;if(ny)return -1;
+    return dir*cmpVals(x,y,col[2])||(new Date(b.updated_at)-new Date(a.updated_at))});
+  return l;
+}
+async function sortPanelBy(key){
+  const col=PCOLS.find(c=>c[0]===key);
+  if(P.sortKey===key)P.sortDir=P.sortDir==="asc"?"desc":"asc";
+  else{P.sortKey=key;P.sortDir=(col[2]==="text")?"asc":"desc"}
+  P.page=1;
+  if(["company","resp","group"].includes(key)){
+    const l=(P.tickets||[]).filter(t=>P.statuses.has(String(t.status)));
+    $("#pProg").textContent="Cargando nombres para ordenar…";await ensureNames(l);
+  }
+  drawPanel();
+}
+async function loadAllConversations(){
+  const l=panelList().filter(t=>!(convCache.get(t.id)?.convs&&convCache.get(t.id).updated_at===t.updated_at));
+  if(!l.length){$("#pProg").textContent="Las respuestas de todos los tickets ya están cargadas.";return}
+  const btn=$("#pAll");btn.disabled=true;let n=0;
+  await pool(l,async t=>{await getConversations(t);n++;const pg=$("#pProg");if(pg)pg.textContent=`Cargando respuestas… ${n}/${l.length}`},3);
+  btn.disabled=false;drawPanel();
+}
+let drawToken=0;
+async function drawPanel(){
+  const out=$("#pOut");if(!out||!P.tickets)return;
+  const list=panelList(),pages=Math.max(1,Math.ceil(list.length/P.per));
+  if(P.page>pages)P.page=pages;
+  const rows=list.slice((P.page-1)*P.per,P.page*P.per);
+  const pending=list.filter(t=>!convCache.get(t.id)?.convs).length;
+  $("#pProg").innerHTML=`${list.length} tickets en los estados elegidos (de ${P.tickets.length} actualizados desde ${esc(isoToDMY(P.since))})`+
+    (P.capped?` · <b style="color:var(--warn)">Se cargaron solo los ${P.tickets.length} más recientes; acota la fecha para ver todos.</b>`:"")+
+    (["replies","last"].includes(P.sortKey)&&pending?` · <b style="color:var(--warn)">${pending} tickets aún sin respuestas cargadas van al final; pulsa «Cargar respuestas de todos» para ordenarlos todos.</b>`:"");
+  if(!rows.length){out.innerHTML='<div class="empty">No hay tickets con esos filtros.</div>';return}
+  const arrow=k=>P.sortKey===k?(P.sortDir==="asc"?" ▲":" ▼"):"";
+  const thStyle={replies:"text-align:center",last:"width:28%"};
+  out.innerHTML=`<table data-nosort><thead><tr>${PCOLS.map(c=>`<th class="sortable${P.sortKey===c[0]?" sorted":""}" data-k="${c[0]}" style="${thStyle[c[0]]||""}" title="Ordenar por ${esc(c[1])}">${esc(c[1])}${arrow(c[0])}</th>`).join("")}</tr></thead><tbody>`+
+   rows.map(t=>`<tr class="click" data-id="${t.id}"><td class="mono">${t.id}</td><td>${esc(t.subject)}</td>
+    <td id="co-${t.id}">${esc(companyOf(t))}</td>
+    <td><span class="chip s${t.status}">${esc(STATUS[t.status]||t.status)}</span></td>
+    <td><span class="chip p${t.priority}">${esc(PRIORITY[t.priority]||t.priority)}</span></td>
+    <td>${esc(reqOf(t))}</td>
+    <td id="rs-${t.id}">${t.responder_id?esc(respOf(t)):'<span class="muted">Sin asignar</span>'}</td>
+    <td id="gr-${t.id}">${esc(groupOf(t)||"—")}</td>
+    <td class="muted" style="white-space:nowrap">${fmtDate(t.updated_at)}</td>
+    <td style="text-align:center" id="rc-${t.id}"><span class="muted">…</span></td>
+    <td id="rl-${t.id}"><span class="muted">Cargando…</span></td></tr>`).join("")+
+   `</tbody></table><div class="pager"><span class="muted">Página ${P.page}/${pages}</span><button id="pPrev" ${P.page<=1?"disabled":""}>‹ Anterior</button><button id="pNext" ${P.page>=pages?"disabled":""}>Siguiente ›</button></div>`;
+  bindRows(out);
+  out.querySelectorAll("th[data-k]").forEach(th=>th.onclick=()=>sortPanelBy(th.dataset.k));
+  $("#pPrev").onclick=()=>{P.page--;drawPanel()};$("#pNext").onclick=()=>{P.page++;drawPanel()};
+  const my=++drawToken;
+  const queue=[...rows];
+  const fill=(t)=>{
+    const c=convCache.get(t.id),rc=document.getElementById("rc-"+t.id),rl=document.getElementById("rl-"+t.id);if(!rc)return;
+    if(!c||c.error){rc.innerHTML='<span class="muted">—</span>';rl.innerHTML=`<span class="muted">${esc(c?.error||"Sin datos")}</span>`;return}
+    const s=summarize(c.convs);
+    rc.innerHTML=`<b style="font-size:15px">${s.total}</b><div class="muted" style="font-size:11px;white-space:nowrap">${s.ag} agente · ${s.cli} cliente</div>`;
+    if(!s.last){rl.innerHTML='<span class="muted">Sin respuestas todavía</span>';return}
+    const fp=firstParagraph(s.last.body,s.last.body_text);
+    rl.innerHTML=`<div class="muted" style="font-size:12px">${esc(who(s.last))}${s.last.private?" · nota privada":""} · ${fmtDate(s.last.created_at)}</div><div>${esc(fp.length>280?fp.slice(0,280)+"…":fp)}</div>`;
+  };
+  const worker=async()=>{while(queue.length&&my===drawToken){const t=queue.shift();await getConversations(t);if(my===drawToken)fill(t)}};
+  rows.forEach(t=>{if(convCache.has(t.id)&&convCache.get(t.id).updated_at===t.updated_at)fill(t)});
+  const names=ensureNames(rows).then(()=>{if(my!==drawToken)return;rows.forEach(t=>{const a=document.getElementById("co-"+t.id),b=document.getElementById("rs-"+t.id);if(a)a.textContent=companyOf(t);if(b)b.innerHTML=t.responder_id?esc(respOf(t)):'<span class="muted">Sin asignar</span>'})});
+  await Promise.all([names,worker(),worker(),worker()]);
+}
+async function exportCsv(){
+  const list=panelList();
+  const line=a=>a.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",");
+  const rows=[line(["ID","Asunto","Empresa","Estado","Prioridad","Solicitante","Responsable","Grupo","Creado","Actualizado","Respuestas","Respuestas agente","Respuestas cliente","Última respuesta de","Fecha última respuesta","Primer párrafo última respuesta"])];
+  await ensureNames(list);
+  list.forEach(t=>{const c=convCache.get(t.id),s=c&&c.convs?summarize(c.convs):null;
+    rows.push(line([t.id,t.subject,t.company_id?(cache.companies[t.company_id]||""):"",STATUS[t.status]||t.status,PRIORITY[t.priority]||t.priority,t.requester?.name||t.requester?.email||"",t.responder_id?respOf(t):"Sin asignar",groupOf(t),fmtDate(t.created_at),fmtDate(t.updated_at),s?.total??"",s?.ag??"",s?.cli??"",s?.last?who(s.last):"",fmtDate(s?.last?.created_at),s?.last?firstParagraph(s.last.body,s.last.body_text):""]))});
+  const blob=new Blob(["﻿"+rows.join("\r\n")],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`freshdesk_panel_${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();a.remove();
+  const sinDatos=list.filter(t=>!convCache.get(t.id)?.convs).length;
+  if(sinDatos)$("#pProg").innerHTML+=` · CSV exportado; ${sinDatos} tickets sin respuestas cargadas (recorre sus páginas para incluirlas).`;
+}
+
+/* ---------- tickets ---------- */
+const tState={page:1,per:30,filter:"",order:"created_at",dir:"desc",since:"",email:"",req:"",comp:""};
+function ticketRows(list){
+  if(!list.length)return '<div class="empty">No hay tickets.</div>';
+  return `<table><thead><tr><th>#</th><th>Asunto</th><th>Empresa</th><th>Estado</th><th>Prioridad</th><th>Solicitante</th><th>Responsable</th><th>Grupo</th><th>Actualizado</th></tr></thead><tbody>`+
+  list.map(t=>`<tr class="click" data-id="${t.id}"><td class="mono">${t.id}</td><td>${esc(t.subject)}</td>
+  <td>${esc(companyOf(t))}</td>
+  <td><span class="chip s${t.status}">${esc(STATUS[t.status]||t.status)}</span></td>
+  <td data-sort="${t.priority}"><span class="chip p${t.priority}">${esc(PRIORITY[t.priority]||t.priority)}</span></td>
+  <td>${esc(t.requester?.name||t.requester?.email||t.requester_id||"")}</td>
+  <td>${t.responder_id?esc(respOf(t)):'<span class="muted">Sin asignar</span>'}</td>
+  <td>${esc(groupOf(t)||"—")}</td>
+  <td class="muted">${fmtDate(t.updated_at)}</td></tr>`).join("")+"</tbody></table>";
+}
+function bindRows(root){root.querySelectorAll("tr[data-id]").forEach(tr=>tr.onclick=()=>openTicket(tr.dataset.id))}
+
+async function renderTickets(){
+  const m=$("#main");
+  m.innerHTML=`<div class="bar">
+   <label>Vista<select id="tFilter"><option value="">Todos (últimos 30 días)</option><option value="new_and_my_open">Nuevos y mis abiertos</option><option value="watching">Que sigo</option><option value="spam">Spam</option><option value="deleted">Eliminados</option></select></label>
+   <label>Actualizados desde<input id="tSince" size="11" placeholder="DD/MM/AAAA"></label>
+   <label>Ordenar por<select id="tOrder"><option value="created_at">Creación</option><option value="updated_at">Actualización</option><option value="due_by">Vencimiento</option><option value="status">Estado</option></select></label>
+   <label>Dirección<select id="tDir"><option value="desc">Desc</option><option value="asc">Asc</option></select></label>
+   <label>Por página<select id="tPer"><option>30</option><option>50</option><option>100</option></select></label>
+   <label>Email solicitante<input id="tEmail" size="18" placeholder="cliente@dominio.com"></label>
+   <label>ID solicitante<input id="tReq" size="9"></label>
+   <label>ID empresa<input id="tComp" size="9"></label>
+   <label>Ir a ticket #<span style="display:flex;gap:4px"><input id="tGo" size="8" placeholder="ID"><button id="tGoBtn">Abrir</button></span></label>
+   <button class="primary" id="tLoad" style="align-self:flex-end">Consultar</button>
+  </div><div id="tErr"></div><div class="card" id="tOut"><div class="empty">Pulsa «Consultar».</div></div>`;
+  $("#tFilter").value=tState.filter;$("#tOrder").value=tState.order;$("#tDir").value=tState.dir;$("#tPer").value=tState.per;$("#tSince").value=isoToDMY(tState.since);$("#tEmail").value=tState.email;$("#tReq").value=tState.req;$("#tComp").value=tState.comp;
+  $("#tGoBtn").onclick=()=>{const v=$("#tGo").value.trim();if(v)openTicket(v)};
+  $("#tLoad").onclick=()=>{tState.page=1;loadTickets()};
+  if($("#connStatus").dataset.ok)loadTickets();
+}
+async function loadTickets(){
+  Object.assign(tState,{filter:$("#tFilter").value,order:$("#tOrder").value,dir:$("#tDir").value,per:+$("#tPer").value,since:$("#tSince").value.trim()?parseDMY($("#tSince").value):"",email:$("#tEmail").value.trim(),req:$("#tReq").value.trim(),comp:$("#tComp").value.trim()});
+  if(tState.page>300){tState.page=300}
+  const q=new URLSearchParams({per_page:tState.per,page:tState.page,include:"requester",order_by:tState.order,order_type:tState.dir});
+  if(tState.filter)q.set("filter",tState.filter);
+  if($("#tSince").value.trim()&&!tState.since){$("#tErr").innerHTML='<div class="err">Fecha inválida. Usa el formato DD/MM/AAAA.</div>';return}
+  if(tState.since)q.set("updated_since",isoLocalStart(tState.since));
+  if(tState.email)q.set("email",tState.email);
+  if(tState.req)q.set("requester_id",tState.req);
+  if(tState.comp)q.set("company_id",tState.comp);
+  const out=$("#tOut");out.innerHTML='<div class="empty">Cargando…</div>';$("#tErr").innerHTML="";
+  const r=await api("/api/v2/tickets?"+q);
+  if(r.ok)await ensureNames(r.data);
+  if(!r.ok){out.innerHTML="";$("#tErr").innerHTML=`<div class="err">${esc(errText(r))}</div>`;return}
+  out.innerHTML=ticketRows(r.data)+`<div class="pager"><span class="muted">Página ${tState.page} · ${r.data.length} resultados · ${r.ms} ms</span>
+   <button id="tPrev" ${tState.page<=1?"disabled":""}>‹ Anterior</button><button id="tNext" ${r.hasNext&&tState.page<300?"":"disabled"}>Siguiente ›</button></div>
+   <p class="hint" style="padding:0 10px 10px">Sin «Actualizados desde», Freshdesk solo devuelve tickets creados en los últimos 30 días. Spam y eliminados solo aparecen con su vista. Máximo 300 páginas.</p>`;
+  bindRows(out);
+  $("#tPrev").onclick=()=>{tState.page--;loadTickets()};$("#tNext").onclick=()=>{tState.page++;loadTickets()};
+}
+
+/* ---------- búsqueda ---------- */
+const sState={entity:"tickets",query:"",page:1};
+function renderSearch(){
+  $("#main").innerHTML=`<div class="bar">
+   <label>Entidad<select id="sEnt"><option value="tickets">Tickets</option><option value="contacts">Contactos</option><option value="companies">Empresas</option></select></label>
+   <label style="flex:1;min-width:300px">Consulta (sintaxis del filtro de Freshdesk)<input id="sQ" placeholder="status:2 AND priority:4"></label>
+   <button class="primary" id="sGo" style="align-self:flex-end">Buscar</button></div>
+   <div class="bar" id="sPresets"></div>
+   <p class="hint">Campos de tickets: status, priority, type, tag, agent_id, group_id, created_at, updated_at, closed_at, due_by, fr_due_by y personalizados con prefijo cf_ (distinguen mayúsculas). Operadores: AND, OR, paréntesis, :&gt; y :&lt; para fechas y números, null para vacío. Fechas como 'AAAA-MM-DD'. Máximo 512 caracteres, 30 resultados por página y 10 páginas. Excluye archivados; los cambios recientes tardan unos minutos en indexarse.</p>
+   <div id="sErr"></div><div class="card" id="sOut"><div class="empty">Escribe una consulta.</div></div>`;
+  const presets=[["Abiertos urgentes","status:2 AND priority:4"],["Pendientes","status:3"],["Abiertos o pendientes de alta prioridad","(status:2 OR status:3) AND priority:3"],["Creados este mes",`created_at:>'${new Date().toISOString().slice(0,8)}01'`],["Vencidos sin resolver",`due_by:<'${new Date().toISOString().slice(0,10)}' AND (status:2 OR status:3)`],["Abiertos sin asignar","status:2 AND agent_id:null"],["Sin etiquetas","tag:null"],["Cerrados este mes",`closed_at:>'${new Date().toISOString().slice(0,8)}01'`]];
+  $("#sPresets").innerHTML=presets.map((p,i)=>`<button data-i="${i}">${esc(p[0])}</button>`).join("");
+  $("#sPresets").querySelectorAll("button").forEach(b=>b.onclick=()=>{$("#sEnt").value="tickets";$("#sQ").value=presets[b.dataset.i][1];sState.page=1;doSearch()});
+  $("#sEnt").value=sState.entity;$("#sQ").value=sState.query;
+  $("#sGo").onclick=()=>{sState.page=1;doSearch()};$("#sQ").onkeydown=e=>{if(e.key==="Enter"){sState.page=1;doSearch()}};
+}
+async function doSearch(){
+  sState.entity=$("#sEnt").value;sState.query=$("#sQ").value.trim();
+  if(!sState.query)return;
+  if(sState.query.length>510){$("#sErr").innerHTML='<div class="err">La consulta supera el máximo de 512 caracteres.</div>';return}
+  const out=$("#sOut");out.innerHTML='<div class="empty">Buscando…</div>';$("#sErr").innerHTML="";
+  const r=await api(`/api/v2/search/${sState.entity}?query=${encodeURIComponent('"'+sState.query.replace(/"/g,"'")+'"')}&page=${sState.page}`);
+  if(!r.ok){out.innerHTML="";$("#sErr").innerHTML=`<div class="err">${esc(errText(r))}</div>`;return}
+  const res=r.data.results||[],total=r.data.total||0,pages=Math.min(10,Math.ceil(total/30));
+  if(sState.entity==="tickets")await ensureNames(res);
+  out.innerHTML=(sState.entity==="tickets"?ticketRows(res):genericTable(sState.entity,res))+
+   `<div class="pager"><span class="muted">${total} resultados · página ${sState.page}/${pages||1} · ${r.ms} ms</span>
+   <button id="sPrev" ${sState.page<=1?"disabled":""}>‹ Anterior</button><button id="sNext" ${sState.page<pages?"":"disabled"}>Siguiente ›</button></div>`;
+  bindRows(out);bindGeneric(out,sState.entity,res);
+  $("#sPrev").onclick=()=>{sState.page--;doSearch()};$("#sNext").onclick=()=>{sState.page++;doSearch()};
+}
+
+/* ---------- entidades simples ---------- */
+const COLS={
+  contacts:[["ID","id"],["Nombre","name"],["Email","email"],["Teléfono",c=>c.phone||c.mobile],["Empresa",c=>c.company_id],["Activo",c=>c.active?"Sí":"No"],["Actualizado",c=>fmtDate(c.updated_at)]],
+  companies:[["ID","id"],["Nombre","name"],["Dominios",c=>(c.domains||[]).join(", ")],["Descripción","description"],["Actualizado",c=>fmtDate(c.updated_at)]],
+  agents:[["ID","id"],["Nombre",a=>a.contact?.name],["Email",a=>a.contact?.email],["Tipo","type"],["Ocasional",a=>a.occasional?"Sí":"No"],["Disponible",a=>a.available?"Sí":"No"],["Último acceso",a=>fmtDate(a.last_active_at)]],
+  groups:[["ID","id"],["Nombre","name"],["Descripción","description"],["Agentes",g=>(g.agent_ids||[]).length],["Actualizado",g=>fmtDate(g.updated_at)]],
+};
+const LABEL={contacts:"Contactos",companies:"Empresas",agents:"Agentes",groups:"Grupos"};
+function genericTable(ent,list){
+  if(!list.length)return '<div class="empty">Sin resultados.</div>';
+  const cols=COLS[ent];
+  return `<table><thead><tr>${cols.map(c=>`<th>${c[0]}</th>`).join("")}</tr></thead><tbody>`+
+   list.map((x,i)=>`<tr class="click" data-g="${i}">${cols.map(c=>`<td>${esc(typeof c[1]==="function"?c[1](x):x[c[1]])}</td>`).join("")}</tr>`).join("")+"</tbody></table>";
+}
+function bindGeneric(root,ent,list){root.querySelectorAll("tr[data-g]").forEach(tr=>tr.onclick=()=>openJson(`${LABEL[ent]||ent} · ${list[tr.dataset.g].id}`,list[tr.dataset.g],ent))}
+const gState={};
+function renderSimple(ent){
+  const st=gState[ent]||(gState[ent]={page:1,filter:""});
+  $("#main").innerHTML=`<div class="bar"><label>Filtrar en esta página<input id="gF" placeholder="texto…" value="${esc(st.filter)}"></label>
+   ${ent==="contacts"?'<label>Email exacto<input id="gEmail" placeholder="cliente@dominio.com"></label>':""}
+   <button class="primary" id="gLoad" style="align-self:flex-end">Consultar</button></div><div id="gErr"></div><div class="card" id="gOut"><div class="empty">Pulsa «Consultar».</div></div>`;
+  const go=async()=>{
+    const out=$("#gOut");out.innerHTML='<div class="empty">Cargando…</div>';$("#gErr").innerHTML="";
+    const q=new URLSearchParams({per_page:100,page:st.page});
+    const em=$("#gEmail")?.value.trim();if(em)q.set("email",em);
+    const r=await api(`/api/v2/${ent}?`+q);
+    if(!r.ok){out.innerHTML="";$("#gErr").innerHTML=`<div class="err">${esc(errText(r))}</div>`;return}
+    const all=r.data;const show=()=>{const f=$("#gF").value.toLowerCase();st.filter=f;const list=f?all.filter(x=>JSON.stringify(x).toLowerCase().includes(f)):all;
+      out.innerHTML=genericTable(ent,list)+`<div class="pager"><span class="muted">Página ${st.page} · ${list.length}/${all.length} · ${r.ms} ms</span><button id="gPrev" ${st.page<=1?"disabled":""}>‹ Anterior</button><button id="gNext" ${r.hasNext?"":"disabled"}>Siguiente ›</button></div>`;
+      bindGeneric(out,ent,list);$("#gPrev").onclick=()=>{st.page--;go()};$("#gNext").onclick=()=>{st.page++;go()}};
+    show();$("#gF").oninput=show;
+  };
+  $("#gLoad").onclick=()=>{st.page=1;go()};
+  if($("#connStatus").dataset.ok)go();
+}
+
+/* ---------- más recursos ---------- */
+const MORE=[
+ ["Tiempo registrado (todos)","/api/v2/time_entries",true],
+ ["Valoraciones de satisfacción","/api/v2/surveys/satisfaction_ratings",true],
+ ["Encuestas","/api/v2/surveys",false],
+ ["Campos de ticket","/api/v2/ticket_fields",false],
+ ["Formularios de ticket","/api/v2/ticket-forms",false],
+ ["Campos de contacto","/api/v2/contact_fields",false],
+ ["Campos de empresa","/api/v2/company_fields",false],
+ ["Roles","/api/v2/roles",false],
+ ["Productos","/api/v2/products",true],
+ ["Horarios laborales","/api/v2/business_hours",false],
+ ["Políticas SLA","/api/v2/sla_policies",false],
+ ["Buzones de email","/api/v2/email_configs",true],
+ ["Carpetas de respuestas predefinidas","/api/v2/canned_response_folders",false],
+ ["Categorías de soluciones (base de conocimiento)","/api/v2/solutions/categories",false],
+ ["Categorías de foros","/api/v2/discussions/categories",false],
+ ["Reglas de automatización: creación de tickets","/api/v2/automations/1/rules",true],
+ ["Reglas de automatización: actualización de tickets","/api/v2/automations/4/rules",true],
+ ["Reglas de automatización: basadas en tiempo","/api/v2/automations/3/rules",true],
+ ["Cuenta","/api/v2/account",false],
+ ["Configuración del helpdesk","/api/v2/settings/helpdesk",false],
+];
+const mState={i:0,page:1};
+function renderMore(){
+  $("#main").innerHTML=`<div class="bar"><label style="min-width:320px">Recurso<select id="mSel">${MORE.map((m,i)=>`<option value="${i}">${esc(m[0])} — ${esc(m[1])}</option>`).join("")}</select></label>
+   <button class="primary" id="mGo" style="align-self:flex-end">Consultar</button></div>
+   <p class="hint">Algunos recursos requieren permisos de administrador (403 si tu rol no los tiene). Cada consulta consume una petición del límite por minuto.</p>
+   <div id="mErr"></div><div class="card" id="mOut"><div class="empty">Elige un recurso.</div></div>`;
+  $("#mSel").value=mState.i;
+  const go=async()=>{
+    const [label,path,paged]=MORE[mState.i];
+    const out=$("#mOut");out.innerHTML='<div class="empty">Cargando…</div>';$("#mErr").innerHTML="";
+    const r=await api(path+(paged?`?per_page=100&page=${mState.page}`:""));
+    if(!r.ok){out.innerHTML="";$("#mErr").innerHTML=`<div class="err">${esc(errText(r))}</div>`;return}
+    const list=Array.isArray(r.data)?r.data:null;
+    if(list&&list.length&&typeof list[0]==="object"){
+      const keys=[...new Set(list.slice(0,20).flatMap(o=>Object.keys(o)))].filter(k=>{const v=list[0][k];return v===null||typeof v!=="object"}).slice(0,7);
+      out.innerHTML=`<table><thead><tr>${keys.map(k=>`<th>${esc(k)}</th>`).join("")}</tr></thead><tbody>${list.map((o,i)=>`<tr class="click" data-m="${i}">${keys.map(k=>`<td>${esc(typeof o[k]==="string"&&/T\d\d:\d\d/.test(o[k])?fmtDate(o[k]):o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table>`+
+       `<div class="pager"><span class="muted">${list.length} elementos · ${r.ms} ms</span>${paged?`<button id="mPrev" ${mState.page<=1?"disabled":""}>‹ Anterior</button><button id="mNext" ${r.hasNext?"":"disabled"}>Siguiente ›</button>`:""}</div>`;
+      out.querySelectorAll("tr[data-m]").forEach(tr=>tr.onclick=()=>openJson(`${label} · ${list[tr.dataset.m].id??tr.dataset.m}`,list[tr.dataset.m]));
+      if(paged){$("#mPrev").onclick=()=>{mState.page--;go()};$("#mNext").onclick=()=>{mState.page++;go()}}
+    }else out.innerHTML=`<pre>${esc(JSON.stringify(r.data,null,2))}</pre>`;
+  };
+  $("#mSel").onchange=()=>{mState.i=+$("#mSel").value;mState.page=1};
+  $("#mGo").onclick=()=>{mState.i=+$("#mSel").value;mState.page=1;go()};
+}
+
+/* ---------- consola ---------- */
+function renderConsole(){
+  $("#main").innerHTML=`<div class="bar"><select id="cM"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select>
+   <input id="cP" style="flex:1;min-width:300px" class="mono" value="/api/v2/tickets?per_page=5"><button class="primary" id="cGo">Enviar</button></div>
+   <div class="bar" id="cEx"></div>
+   <div class="grid2"><div><div class="muted" style="margin-bottom:4px">Cuerpo JSON (POST/PUT)</div><textarea id="cB" placeholder='{"status": 4}'></textarea>
+   <p class="hint">Las peticiones POST, PUT y DELETE modifican datos reales de tu portal. Se pide confirmación antes de enviarlas. Ojo: algunas acciones no siguen el patrón habitual (bulk_update usa POST y merge usa PUT). Los adjuntos (multipart) no están soportados en esta consola.</p></div>
+   <div class="card"><div class="muted" style="padding:8px 12px;border-bottom:1px solid var(--line)" id="cS">Respuesta</div><pre id="cR"></pre></div></div>
+   <div id="cConfirm"></div>`;
+  const ex=["/api/v2/agents/me","/api/v2/tickets?per_page=5&include=requester,stats,description","/api/v2/tickets/1?include=conversations,requester,company,stats","/api/v2/tickets/1/conversations","/api/v2/search/tickets?query=%22status:2%20AND%20priority:4%22","/api/v2/contacts/autocomplete?term=ana","/api/v2/companies/autocomplete?name=acme","/api/v2/agents/autocomplete?term=ana","/api/v2/ticket_fields","/api/v2/sla_policies"];
+  $("#cEx").innerHTML=ex.map(e=>`<button class="mono" data-p="${esc(e)}">${esc(e)}</button>`).join("");
+  $("#cEx").querySelectorAll("button").forEach(b=>b.onclick=()=>{$("#cM").value="GET";$("#cP").value=b.dataset.p});
+  const send=async()=>{
+    const method=$("#cM").value;let path=$("#cP").value.trim();if(!path.startsWith("/"))path="/"+path;
+    let body;if(method!=="GET"&&method!=="DELETE"&&$("#cB").value.trim()){try{body=JSON.stringify(JSON.parse($("#cB").value))}catch(e){$("#cS").textContent="JSON inválido: "+e.message;return}}
+    $("#cS").textContent="Enviando…";
+    const r=await api(path,{method,body});
+    const rl=r.headers.get("X-Up-x-ratelimit-account-remaining")||r.headers.get("X-Up-x-ratelimit-remaining");
+    $("#cS").innerHTML=`<b class="${r.ok?"ok":"bad"}" style="color:var(--${r.ok?"ok":"bad"})">${r.status}</b> · ${r.ms} ms${rl?` · límite restante ${esc(rl)}`:""}${r.link?` · <span class="mono">${esc(r.link)}</span>`:""}`;
+    $("#cR").textContent=typeof r.data==="string"?r.data:JSON.stringify(r.data,null,2);
+  };
+  $("#cGo").onclick=()=>{
+    const m=$("#cM").value;
+    if(m==="GET")return send();
+    $("#cConfirm").innerHTML=`<div class="err" style="margin-top:12px;display:flex;gap:10px;align-items:center">Vas a enviar ${esc(m)} a ${esc($("#cP").value)}. Esto modifica datos reales. <button id="cYes" class="primary">Confirmar</button><button id="cNo">Cancelar</button></div>`;
+    $("#cYes").onclick=()=>{$("#cConfirm").innerHTML="";send()};$("#cNo").onclick=()=>{$("#cConfirm").innerHTML=""};
+  };
+}
+
+/* ---------- detalle ---------- */
+let lastRaw=null;
+$("#dClose").onclick=()=>$("#drawer").classList.remove("on");
+document.addEventListener("keydown",e=>{if(e.key==="Escape")$("#drawer").classList.remove("on")});
+$("#dRaw").onclick=()=>{if(lastRaw)$("#dBody").innerHTML=`<pre>${esc(JSON.stringify(lastRaw,null,2))}</pre>`};
+function openJson(title,obj){lastRaw=obj;$("#dTitle").textContent=title;$("#dBody").innerHTML=`<pre>${esc(JSON.stringify(obj,null,2))}</pre>`;$("#drawer").classList.add("on")}
+function safeHtml(html){
+  const doc=new DOMParser().parseFromString(html||"","text/html");
+  doc.querySelectorAll("script,style,iframe,object,embed,link,meta,form").forEach(n=>n.remove());
+  doc.querySelectorAll("*").forEach(n=>{[...n.attributes].forEach(a=>{if(/^on/i.test(a.name)||/^\s*javascript:/i.test(a.value))n.removeAttribute(a.name)})});
+  return doc.body.innerHTML;
+}
+async function openTicket(id){
+  $("#dTitle").textContent="Ticket #"+id;$("#dBody").innerHTML='<div class="empty">Cargando…</div>';$("#drawer").classList.add("on");
+  const [t,c]=await Promise.all([api(`/api/v2/tickets/${encodeURIComponent(id)}?include=requester,stats,company`),api(`/api/v2/tickets/${encodeURIComponent(id)}/conversations?per_page=100`)]);
+  if(!t.ok){$("#dBody").innerHTML=`<div class="err">${esc(errText(t))}</div>`;return}
+  const x=t.data;
+  if(x.company&&x.company.id)cache.companies[x.company.id]=x.company.name;
+  await ensureNames([x]);
+  const [te,sr,as]=await Promise.all([
+    api(`/api/v2/tickets/${x.id}/time_entries`),
+    api(`/api/v2/tickets/${x.id}/satisfaction_ratings`),
+    x.association_type?api(`/api/v2/tickets/${x.id}/associated_tickets`):Promise.resolve(null)]);
+  lastRaw={ticket:x,conversations:c.ok?c.data:null,time_entries:te.ok?te.data:null,satisfaction_ratings:sr.ok?sr.data:null,associated_tickets:as&&as.ok?as.data:null};
+  const assocIds=(as&&as.ok?(Array.isArray(as.data)?as.data.map(a=>a.id??a):[]):[]).concat(x.associated_tickets_list||[]);
+  const uniqAssoc=[...new Set(assocIds)];
+  const extra=`
+  ${x.association_type?`<h3 style="font-size:14px">Asociación: ${esc(ASSOC[x.association_type]||x.association_type)}</h3><div style="margin-bottom:14px">${uniqAssoc.map(i=>`<button data-open="${esc(i)}">#${esc(i)}</button>`).join(" ")||'<span class="muted">—</span>'}</div>`:""}
+  <h3 style="font-size:14px">Tiempo registrado</h3>
+  ${te.ok?(te.data.length?`<div class="card" style="margin-bottom:14px"><table><thead><tr><th>Agente</th><th>Tiempo</th><th>Facturable</th><th>Fecha</th><th>Nota</th></tr></thead><tbody>${te.data.map(e=>`<tr><td>${esc(cache.agents?.[e.agent_id]||e.agent_id)}</td><td class="mono">${esc(e.time_spent)}</td><td>${e.billable?"Sí":"No"}</td><td>${fmtDate(e.executed_at)}</td><td>${esc(e.note||"")}</td></tr>`).join("")}</tbody></table></div>`:'<p class="muted">Sin registros.</p>'):`<p class="muted">${esc(errText(te).split("\n")[0])}</p>`}
+  <h3 style="font-size:14px">Satisfacción</h3>
+  ${sr.ok?(sr.data.length?sr.data.map(s=>`<div class="msg"><div class="mh"><span>Encuesta ${esc(s.survey_id)}</span><span>${fmtDate(s.created_at)}</span></div><div class="mb"><span class="mono">${esc(JSON.stringify(s.ratings))}</span>${s.feedback?`<div style="margin-top:6px">${esc(s.feedback)}</div>`:""}</div></div>`).join(""):'<p class="muted">Sin valoraciones.</p>'):`<p class="muted">${esc(errText(sr).split("\n")[0])}</p>`}`;
+  $("#dTitle").textContent=`#${x.id} · ${x.subject}`;
+  const cf=Object.entries(x.custom_fields||{}).filter(([k,v])=>v!==null&&v!=="");
+  $("#dBody").innerHTML=`<div class="kv">
+   <div>Estado</div><div><span class="chip s${x.status}">${esc(STATUS[x.status]||x.status)}</span></div>
+   <div>Prioridad</div><div><span class="chip p${x.priority}">${esc(PRIORITY[x.priority]||x.priority)}</span></div>
+   <div>Tipo</div><div>${esc(x.type||"—")}</div>
+   <div>Canal</div><div>${esc(SOURCE[x.source]||x.source)}</div>
+   <div>Solicitante</div><div>${esc(x.requester?.name||"")} <span class="muted">${esc(x.requester?.email||"")}</span></div>
+   <div>Empresa</div><div>${esc(x.company?.name||"—")}</div>
+   <div>Responsable</div><div>${respCell(x)}</div>
+   <div>Grupo</div><div>${esc(cache.groups?.[x.group_id]||x.group_id||"—")}</div>
+   <div>Etiquetas</div><div>${(x.tags||[]).map(t=>`<span class="chip">${esc(t)}</span>`).join(" ")||"—"}</div>
+   <div>Creado</div><div>${fmtDate(x.created_at)}</div>
+   <div>Actualizado</div><div>${fmtDate(x.updated_at)}</div>
+   <div>Vence</div><div>${fmtDate(x.due_by)}</div>
+   <div>1ª respuesta vence</div><div>${fmtDate(x.fr_due_by)}</div>
+   ${x.stats?`<div>1ª respuesta</div><div>${fmtDate(x.stats.first_responded_at)||"—"}</div><div>Resuelto</div><div>${fmtDate(x.stats.resolved_at)||"—"}</div>`:""}
+   ${cf.map(([k,v])=>`<div>${esc(k.replace(/^cf_/,""))}</div><div>${esc(v)}</div>`).join("")}
+  </div>
+  <h3 style="font-size:14px">Descripción</h3><div class="msg"><div class="mb">${safeHtml(x.description)}</div></div>
+  <h3 style="font-size:14px">Conversación (${c.ok?c.data.length:"?"})</h3>
+  ${c.ok?c.data.map(m=>`<div class="msg ${m.private?"private":""}"><div class="mh"><span>${m.incoming?"Cliente":"Agente"}${m.private?" · nota privada":""} · ${esc(m.from_email||cache.agents?.[m.user_id]||m.user_id)}</span><span>${fmtDate(m.created_at)}</span></div><div class="mb">${safeHtml(m.body)}</div></div>`).join(""):`<div class="err">${esc(errText(c))}</div>`}`+extra;
+  $("#dBody").querySelectorAll("button[data-open]").forEach(b=>b.onclick=()=>openTicket(b.dataset.open));
+}
+
+/* ---------- ordenar cualquier tabla por columna ---------- */
+function sortVal(td){
+  if(!td)return {t:"e",v:""};
+  const raw=(td.dataset.sort??td.textContent).trim();
+  if(raw===""||raw==="—"||raw==="…")return {t:"e",v:""};
+  let m=/^(\d{2})\/(\d{2})\/(\d{4})(?: (\d{2}):(\d{2}))?/.exec(raw);
+  if(m)return {t:"n",v:new Date(+m[3],+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0)).getTime()};
+  if(/^-?\d+([.,]\d+)?$/.test(raw))return {t:"n",v:parseFloat(raw.replace(",","."))};
+  if(/^\d{1,3}:\d{2}$/.test(raw)){const [h,mi]=raw.split(":");return {t:"n",v:+h*60+ +mi}}
+  return {t:"s",v:raw};
+}
+function enhanceTables(root){
+  root.querySelectorAll("table:not([data-sortable]):not([data-nosort])").forEach(tb=>{
+    tb.dataset.sortable="1";
+    const ths=[...(tb.tHead?.rows[0]?.cells||[])];
+    ths.forEach((th,i)=>{
+      th.classList.add("sortable");th.title="Ordenar por esta columna";
+      th.onclick=e=>{
+        e.stopPropagation();
+        const dir=th.dataset.dir==="asc"?"desc":"asc";
+        ths.forEach(h=>{delete h.dataset.dir;h.classList.remove("sorted");const a=h.querySelector(".arr");if(a)a.remove()});
+        th.dataset.dir=dir;th.classList.add("sorted");th.insertAdjacentHTML("beforeend",`<span class="arr">${dir==="asc"?" ▲":" ▼"}</span>`);
+        const body=tb.tBodies[0];if(!body)return;
+        const rows=[...body.rows];const k=dir==="asc"?1:-1;
+        rows.sort((ra,rb)=>{const a=sortVal(ra.cells[i]),b=sortVal(rb.cells[i]);
+          if(a.t==="e"&&b.t==="e")return 0;if(a.t==="e")return 1;if(b.t==="e")return -1;
+          if(a.t==="n"&&b.t==="n")return k*(a.v-b.v);
+          return k*String(a.v).localeCompare(String(b.v),"es",{sensitivity:"base",numeric:true})});
+        rows.forEach(r=>body.appendChild(r));
+      };
+    });
+  });
+}
+new MutationObserver(()=>enhanceTables(document.body)).observe(document.body,{childList:true,subtree:true});
+
+/* ---------- inicio ---------- */
+(async()=>{
+  loadCreds();
+  if($("#domain").value&&$("#apikey").value)$("#connect").click();
+  render();
+})();
+</script>
+</body>
+</html>
