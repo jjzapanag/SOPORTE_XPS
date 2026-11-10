@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consola Freshdesk</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--ink:#1d2330;--muted:#6b7385;--line:#e3e6ec;--accent:#1f6feb;--accent-ink:#fff;
+--ok:#1a7f37;--warn:#9a6700;--bad:#cf222e;--chip:#eef1f6;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1218;--panel:#171b23;--ink:#e6e9ef;--muted:#9aa3b5;--line:#2a303c;--chip:#222836;--accent:#4c8dff}}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+header h1{font-size:16px;margin:0;font-weight:650}
+.conn{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto}
+input,select,textarea,button{font:inherit;color:inherit}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 9px}
+textarea{font-family:var(--mono);font-size:12.5px;width:100%;min-height:110px}
+button{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 12px;cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:disabled{opacity:.5;cursor:default}
+.status{font-size:12px;color:var(--muted)}.status b.ok{color:var(--ok)}.status b.bad{color:var(--bad)}
+nav{display:flex;gap:2px;padding:0 20px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto}
+nav button{border:0;border-bottom:2px solid transparent;border-radius:0;padding:10px 14px;background:none;color:var(--muted)}
+nav button.on{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+main{padding:18px 20px;max-width:1800px;margin:0 auto}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.bar label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:600;background:var(--bg);position:sticky;top:0}
+.pTop{display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:linear-gradient(90deg,#0b2a55,#123a72);color:#fff;border-radius:10px;padding:14px 18px;margin-bottom:14px}
+.pTop .muted{color:#c9d6ee}.ver{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--chip);color:var(--muted);vertical-align:middle;margin-left:6px}.pTop .ver{background:rgba(255,255,255,.18);color:#fff}.pTitle{font-size:18px;font-weight:650}.pTopBtns{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.pill{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:999px;font-size:12px}.pill.on{background:rgba(255,255,255,.14)}
+.pTop button.primary{border-radius:999px;font-size:12px;background:#fff;color:#0b2a55;border-color:#fff}
+.pGrid{display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:start}@media(max-width:1000px){.pGrid{grid-template-columns:1fr}}
+.pSide{padding:14px 16px;position:sticky;top:120px;max-height:calc(100vh - 140px);overflow:auto}
+.pSideH,.secH{font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:650;color:var(--muted)}
+.pSideH{margin-bottom:10px}.secH{display:flex;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}.secH .muted{text-transform:none;letter-spacing:0;font-weight:400}
+.rk{padding:6px 4px;border-radius:6px;cursor:pointer}.rk:hover{background:var(--chip)}.rk.on{background:var(--chip);outline:1px solid var(--accent)}
+.rkH{display:flex;justify-content:space-between;font-size:13px;color:var(--accent);margin-bottom:4px}.rkH b{color:var(--ink)}
+.rkB{height:6px;background:var(--chip);border-radius:4px;overflow:hidden}.rkB i{display:block;height:100%;background:var(--accent);border-radius:4px}
+a.tid{color:var(--accent);text-decoration:none}
+.lastMeta{font-size:12px;color:var(--muted);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lastBox{height:4.6em;overflow-y:auto;white-space:pre-line;line-height:1.5;padding:4px 8px 4px 0;font-size:13px;cursor:text;scrollbar-width:thin;scrollbar-color:var(--line) transparent;border-right:2px solid var(--line)}
+.lastBox::-webkit-scrollbar{width:6px}.lastBox::-webkit-scrollbar-thumb{background:var(--muted);border-radius:3px}.lastBox::-webkit-scrollbar-track{background:var(--chip);border-radius:3px}
+td.lastCol{min-width:300px;max-width:420px}
+#newModal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:30}
+#newModal .box{background:var(--panel);border-radius:12px;border-top:4px solid var(--accent);padding:22px 26px;width:min(480px,92vw);box-shadow:0 20px 50px rgba(0,0,0,.3)}
+#newModal ul{padding-left:18px;margin:12px 0 16px;font-size:13px;line-height:1.6}#newModal a{color:var(--accent)}
+th.sortable{cursor:pointer;user-select:none;white-space:nowrap}th.sortable:hover{color:var(--ink)}th.sorted{color:var(--accent)}
+tr.click{cursor:pointer}tr.click:hover td{background:var(--chip)}
+.chip{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--chip);font-size:12px;white-space:nowrap}
+.s2{color:var(--accent)}.s3{color:var(--warn)}.s4,.s5{color:var(--ok)}.p3,.p4{color:var(--bad)}
+.muted{color:var(--muted)}.mono{font-family:var(--mono);font-size:12.5px}
+.pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:10px}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+.err{background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad);border:1px solid color-mix(in srgb,var(--bad) 35%,transparent);padding:10px 12px;border-radius:8px;margin-bottom:12px;white-space:pre-wrap}
+pre{margin:0;padding:12px;font-family:var(--mono);font-size:12.5px;overflow:auto;max-height:70vh;white-space:pre-wrap;word-break:break-word}
+.drawer{position:fixed;inset:0 0 0 auto;width:min(760px,100%);background:var(--panel);border-left:1px solid var(--line);box-shadow:-10px 0 30px rgba(0,0,0,.15);z-index:10;display:none;flex-direction:column}
+.drawer.on{display:flex}.drawer .hd{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.drawer .bd{overflow:auto;padding:16px 18px;flex:1}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:6px 12px;margin-bottom:16px}
+.kv div:nth-child(odd){color:var(--muted)}
+.msg{border:1px solid var(--line);border-radius:8px;margin-bottom:10px}
+.msg .mh{padding:6px 10px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px}
+.msg .mb{padding:10px;overflow:auto}.msg.private{border-style:dashed}
+.msg .mb img{max-width:100%}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+.hint{font-size:12px;color:var(--muted);margin:6px 0 0}
+.toolbar-right{margin-left:auto;display:flex;gap:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Consola Freshdesk <span class="ver" id="appVer"></span></h1>
+  <div class="conn">
+    <input id="domain" placeholder="miempresa.freshdesk.com" size="24" autocomplete="off">
+    <input id="apikey" type="password" placeholder="API key" size="26" autocomplete="off">
+    <label class="status" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="remember"> Recordar</label>
+    <button class="primary" id="connect">Conectar</button>
+    <span class="status" id="connStatus">Sin conectar</span>
+  </div>
+</header>
+<nav id="tabs">
+  <button data-tab="panel" class="on">Panel de respuestas</button>
+  <button data-tab="tickets" style="display:none">Tickets</button>
+  <button data-tab="search" style="display:none">Búsqueda avanzada</button>
+  <button data-tab="contacts" style="display:none">Contactos</button>
+  <button data-tab="companies" style="display:none">Empresas</button>
+  <button data-tab="agents" style="display:none">Agentes</button>
+  <button data-tab="groups" style="display:none">Grupos</button>
+  <button data-tab="more" style="display:none">Más recursos</button>
+  <button data-tab="console" style="display:none">Consola API</button>
+</nav>
+<div id="netNote" style="display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);box-shadow:0 6px 20px rgba(0,0,0,.15);border-radius:8px;padding:8px 14px;z-index:20;font-size:13px;color:var(--warn)"></div>
+<div id="newModal"><div class="box"><div style="font-size:18px;font-weight:650">🔔 <span class="nmT"></span></div><ul class="nmL"></ul><button class="primary" style="width:100%" onclick="document.getElementById('newModal').style.display='none'">Entendido</button></div></div>
+<main id="main"></main>
+
+<div class="drawer" id="drawer">
+  <div class="hd"><strong id="dTitle">Detalle</strong><span class="toolbar-right"><button id="dRaw">JSON</button><button id="dClose">Cerrar</button></span></div>
+  <div class="bd" id="dBody"></div>
+</div>
+
+<script>
+const APP_VERSION="v2.1";
+const APP_BUILD="10/11/2026 09:15";
+const STATUS={2:"Abierto",3:"Pendiente",4:"Resuelto",5:"Cerrado"};
+const PRIORITY={1:"Baja",2:"Media",3:"Alta",4:"Urgente"};
+const SOURCE={1:"Email",2:"Portal",3:"Teléfono",7:"Chat",9:"Widget de feedback",10:"Email saliente"};
+const ASSOC={1:"Padre",2:"Hijo",3:"Tracker",4:"Relacionado"};
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const fmtDate=v=>{if(!v)return"";const d=new Date(v);if(isNaN(d))return String(v);return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
+const isoToDMY=s=>s?String(s).slice(0,10).split("-").reverse().join("/"):"";
+function parseDMY(v){const m=/^\s*(\d{1,2})\/(\d{1,2})\/(\d{4})\s*$/.exec(v||"");if(!m)return null;const d=+m[1],mo=+m[2],y=+m[3];const t=new Date(y,mo-1,d);if(t.getFullYear()!==y||t.getMonth()!==mo-1||t.getDate()!==d)return null;return `${y}-${pad(mo)}-${pad(d)}`}
+const isoLocalStart=iso=>new Date(iso+"T00:00:00").toISOString();
+const cache={agents:null,groups:null,fields:null,companies:{}};
+let envKey=false;
+
+function store(){try{return window.localStorage}catch(e){return null}}
+function loadCreds(){const s=store();if(!s)return;try{const c=JSON.parse(s.getItem("fdc")||"{}");if(c.domain)$("#domain").value=c.domain;if(c.key){$("#apikey").value=c.key;$("#remember").checked=true}}catch(e){}}
+function saveCreds(){const s=store();if(!s)return;try{if($("#remember").checked)s.setItem("fdc",JSON.stringify({domain:$("#domain").value,key:$("#apikey").value}));else s.setItem("fdc",JSON.stringify({domain:$("#domain").value}))}catch(e){}}
+
+function normDomain(v){let d=(v||"").trim().toLowerCase().replace(/^https?:\/\//,"").split("/")[0];if(d.endsWith(".freshdesk.com"))d=d.slice(0,-14);return /^[a-z0-9][a-z0-9-]{0,62}$/.test(d)?d:null}
+/* Cola global: pocas peticiones a la vez y pausa común cuando Freshdesk frena */
+const NET={inflight:0,max:2,pauseUntil:0,everOk:false};
+const nap=ms=>new Promise(r=>setTimeout(r,ms));
+function netNote(msg){const n=$("#netNote");if(!n)return;if(msg){n.textContent=msg;n.style.display="block"}else n.style.display="none"}
+async function acquireSlot(){while(NET.inflight>=NET.max||Date.now()<NET.pauseUntil)await nap(Math.max(150,NET.pauseUntil-Date.now()));NET.inflight++}
+function pauseAll(sec,why){
+  NET.pauseUntil=Math.max(NET.pauseUntil,Date.now()+sec*1000);
+  const tick=()=>{const left=Math.ceil((NET.pauseUntil-Date.now())/1000);if(left>0){netNote(`${why} Reanudando en ${left} s…`);setTimeout(tick,1000)}else netNote("")};tick();
+}
+async function api(path,{method="GET",body,retries=3}={}){
+  const d=normDomain($("#domain").value),k=$("#apikey").value.trim();
+  const fake=(msg,status=0)=>({ok:false,status,data:{proxy_error:msg},ms:0,link:"",hasNext:false,headers:{get:()=>null}});
+  if(!d)return fake("Dominio de Freshdesk inválido o vacío (ej.: miempresa.freshdesk.com).");
+  if(!k)return fake("Falta la API key.");
+  const base=`https://${d}.freshdesk.com`;
+  const headers={"Authorization":"Basic "+btoa(unescape(encodeURIComponent(k+":X"))),"Accept":"application/json"};
+  if(body!==undefined)headers["Content-Type"]="application/json";
+  const payload=body===undefined?undefined:(typeof body==="string"?body:JSON.stringify(body));
+  const safeToRetry=method==="GET";
+  const waits=[8,20,45].slice(0,retries); // segundos entre reintentos
+  for(let attempt=0;;attempt++){
+    await acquireSlot();
+    const t0=performance.now();let r=null;
+    try{r=await fetch(base+path,{method,headers,body:payload})}catch(e){r=null}
+    finally{NET.inflight--}
+    if(!r){
+      // El navegador oculta la respuesta: casi siempre es un 429 (límite por minuto) que Freshdesk envía sin cabeceras CORS
+      if(!NET.everOk)return fake(`No se pudo conectar con ${base}. Revisa que el dominio sea correcto y tu conexión a internet.`);
+      if(safeToRetry&&attempt<waits.length){pauseAll(waits[attempt],"Freshdesk no respondió (probablemente se alcanzó el límite de peticiones por minuto).");continue}
+      pauseAll(8,"Freshdesk no respondió (probablemente se alcanzó el límite de peticiones por minuto).");
+      return fake(`Freshdesk no respondió a esta consulta tras ${attempt+1} intentos. Lo más probable es que la cuenta haya superado su límite de peticiones por minuto: en ese caso Freshdesk responde sin permiso CORS y el navegador bloquea la respuesta. Espera un minuto y pulsa «Reintentar».`);
+    }
+    NET.everOk=true;
+    if(r.status===429&&safeToRetry&&attempt<waits.length){
+      const ra=+(r.headers.get("retry-after")||0);pauseAll(ra||waits[attempt],"Límite de peticiones por minuto alcanzado.");continue;
+    }
+    const ms=Math.round(performance.now()-t0);
+    const text=await r.text();let data;try{data=text?JSON.parse(text):null}catch(e){data=text}
+    const hd={get:n=>r.headers.get(String(n).replace(/^X-Up-/i,""))};
+    const H=n=>hd.get(n);
+    const rem=H("x-ratelimit-account-remaining")||H("x-ratelimit-remaining"),tot=H("x-ratelimit-account-total")||H("x-ratelimit-total");
+    const subR=H("x-ratelimit-sublimit-remaining"),subT=H("x-ratelimit-sublimit-total");
+    if(rem){
+      $("#connStatus").innerHTML=($("#connStatus").dataset.ok?'<b class="ok">Conectado</b> · ':"")+`Límite/min: ${esc(rem)}/${esc(tot||"?")}`+(subR?` · sublímite ${esc(subR)}/${esc(subT||"?")}`:"");
+      // Frenar antes de agotar el límite
+      if(+rem<=3||(subR!==null&&+subR<=2))pauseAll(20,"Quedan pocas peticiones disponibles este minuto.");
+    }
+    const link=H("link")||"";
+    return {ok:r.ok,status:r.status,data,ms,link,hasNext:/rel="next"/.test(link)||(Array.isArray(data)&&new URLSearchParams(path.split("?")[1]||"").get("per_page")==data.length),headers:hd};
+  }
+}
+const HTTP_HINT={
+  400:"Error de validación o formato en la petición.",
+  401:"Credenciales inválidas. Revisa la API key (Perfil → Configuración de perfil, debajo de cambiar contraseña).",
+  403:"Acceso denegado: tu rol no tiene permiso, la función no está en tu plan, o la cuenta está bloqueada.",
+  404:"Recurso o URL no encontrada.",
+  405:"Método no permitido (también ocurre al modificar tickets en spam/eliminados o contactos bloqueados).",
+  406:"Cabecera Accept no soportada.",
+  409:"Conflicto de estado (por ejemplo, email duplicado).",
+  415:"Tipo de contenido no soportado.",
+  429:"Has superado el límite de peticiones por minuto de la cuenta.",
+  500:"Error interno de Freshdesk. Reintenta más tarde."};
+function errText(res){
+  const d=res.data;
+  if(d&&d.proxy_error)return d.proxy_error;
+  let s=`${res.status} · ${HTTP_HINT[res.status]||"Error"}`;
+  if(res.status===429){const ra=res.headers.get("X-Up-retry-after");if(ra)s+=` Reintenta en ${ra} s.`}
+  if(d&&typeof d==="object"){
+    if(d.description)s+=`\n${d.description}`;
+    if(Array.isArray(d.errors))s+="\n"+d.errors.map(e=>`• ${e.field?e.field+": ":""}${e.message||""}${e.code?` [${e.code}]`:""}`).join("\n");
+    if(!d.description&&!d.errors)s+="\n"+JSON.stringify(d,null,2);
+  }else if(d)s+="\n"+d;
+  return s;
+}
+
+async function fetchAll(path){let out=[],page=1;while(page<=20){const r=await api(`${path}${path.includes("?")?"&":"?"}per_page=100&page=${page}`);if(!r.ok||!Array.isArray(r.data))break;out=out.concat(r.data);if(r.data.length<100)break;page++}return out}
+async function pool(items,fn,n=3){const q=[...items];await Promise.all(Array.from({length:Math.min(n,q.length)},async()=>{while(q.length)await fn(q.shift())}))}
+// Nombres de empresas y de agentes que no estén en la lista (p. ej. desactivados), bajo demanda
+async function ensureNames(rows){
+  cache.agents=cache.agents||{};
+  const cids=[...new Set(rows.map(t=>t.company_id).filter(id=>id&&!(id in cache.companies)))];
+  const aids=[...new Set(rows.map(t=>t.responder_id).filter(id=>id&&!(id in cache.agents)))];
+  await Promise.all([
+    pool(cids,async id=>{const r=await api(`/api/v2/companies/${id}`);cache.companies[id]=r.ok?r.data.name:`Empresa ${id}`}),
+    pool(aids,async id=>{const r=await api(`/api/v2/agents/${id}`);cache.agents[id]=r.ok?(r.data.contact?.name||r.data.contact?.email||`Agente ${id}`):`Agente ${id} (inactivo)`})]);
+}
+const companyOf=t=>t.company_id?(cache.companies[t.company_id]??"…"):"—";
+const respOf=t=>t.responder_id?(cache.agents?.[t.responder_id]??"…"):"Sin asignar";
+const groupOf=t=>t.group_id?(cache.groups?.[t.group_id]??`Grupo ${t.group_id}`):"";
+const respCell=t=>`${t.responder_id?esc(respOf(t)):'<span class="muted">Sin asignar</span>'}${groupOf(t)?`<div class="muted" style="font-size:11px">${esc(groupOf(t))}</div>`:""}`;
+async function loadLookups(){
+  if(!cache.agents)cache.agents=Object.fromEntries((await fetchAll("/api/v2/agents")).map(a=>[a.id,a.contact?.name||a.contact?.email||a.id]));
+  if(!cache.groups)cache.groups=Object.fromEntries((await fetchAll("/api/v2/groups")).map(g=>[g.id,g.name]));
+  if(!cache.fields){
+    // Estados personalizados: se leen de los campos de ticket
+    const r=await api("/api/v2/ticket_fields");cache.fields=r.ok?r.data:[];
+    const st=cache.fields.find(f=>f.name==="status");
+    if(st&&st.choices&&!Array.isArray(st.choices))for(const[k,v]of Object.entries(st.choices))STATUS[k]=Array.isArray(v)?v[0]:v;
+  }
+}
+
+$("#connect").onclick=async()=>{
+  saveCreds();cache.agents=cache.groups=cache.fields=null;cache.companies={};P.statuses=null;P.tickets=null;convCache.clear();
+  const st=$("#connStatus");st.textContent="Conectando…";delete st.dataset.ok;
+  const r=await api("/api/v2/agents/me");
+  if(r.ok){st.dataset.ok="1";st.innerHTML=`<b class="ok">Conectado</b> como ${esc(r.data.contact?.name||r.data.contact?.email)}`;await loadLookups();setupAuto();render()}
+  else{st.innerHTML=`<b class="bad">Error</b> ${esc(errText(r).split("\n")[0])}`}
+};
+
+/* ---------- tabs ---------- */
+let tab="panel";
+document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;document.querySelectorAll("#tabs button").forEach(x=>x.classList.toggle("on",x===b));render()});
+function render(){({panel:renderPanel,tickets:renderTickets,search:renderSearch,contacts:()=>renderSimple("contacts"),companies:()=>renderSimple("companies"),agents:()=>renderSimple("agents"),groups:()=>renderSimple("groups"),more:renderMore,console:renderConsole})[tab]()}
+
+/* ---------- panel de respuestas ---------- */
+const P={tickets:null,page:1,per:25,since:"",statuses:null,includeNotes:false,sortKey:"updated",sortDir:"desc",q:"",loading:false,maxPages:10};
+const convCache=new Map(); // id -> {updated_at, convs}
+function monthsAgo(n){const d=new Date();d.setMonth(d.getMonth()-n);return d.toISOString().slice(0,10)}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const apiRetry=path=>api(path); // los reintentos los gestiona api()
+async function getConversations(t){
+  const c=convCache.get(t.id);
+  if(c&&c.convs&&c.updated_at===t.updated_at)return c.convs;
+  let all=[],page=1;
+  while(true){
+    const r=await api(`/api/v2/tickets/${t.id}/conversations?per_page=100&page=${page}`,{retries:0}); // el panel reprocesa los que fallen
+    if(!r.ok){convCache.set(t.id,{updated_at:t.updated_at,error:errText(r).split("\n")[0],retry:r.status===0||r.status===429||r.status>=500});return null}
+    all=all.concat(r.data);
+    if(r.data.length<100)break; page++;
+  }
+  convCache.set(t.id,{updated_at:t.updated_at,convs:all});
+  return all;
+}
+function firstParagraph(html,text){
+  const doc=new DOMParser().parseFromString(html||"","text/html");
+  doc.querySelectorAll("blockquote,.freshdesk_quote,.gmail_quote,.gmail_extra,style,script").forEach(n=>n.remove());
+  const blocks=[...doc.body.querySelectorAll("p,div,li,h1,h2,h3,h4,td")].filter(n=>!n.querySelector("p,div,li,td"));
+  for(const b of blocks){const s=b.textContent.replace(/\s+/g," ").trim();if(s&&!/^(hola|buen[oa]s?( días| tardes| noches)?|estimad[oa]s?|hi|hello|dear)\b[^.!?]{0,40}[,:]?$/i.test(s))return s}
+  const t=(text||doc.body.textContent||"").split(/\n\s*\n/).map(x=>x.replace(/\s+/g," ").trim()).filter(Boolean);
+  return t.find(x=>!/^(hola|buen[oa]s?|estimad[oa]s?|hi|hello|dear)\b.{0,40}$/i.test(x))||t[0]||"";
+}
+function summarize(convs){
+  const pub=convs.filter(m=>P.includeNotes||!m.private);
+  const fromCli=pub.filter(m=>m.incoming).length;
+  const last=pub.length?pub.reduce((a,b)=>new Date(b.created_at)>new Date(a.created_at)?b:a):null;
+  return {total:pub.length,cli:fromCli,ag:pub.length-fromCli,last};
+}
+function who(m){if(!m)return"";if(m.incoming)return"Cliente";return(cache.agents?.[m.user_id])||"Agente"}
+
+/* ===== Panel: estado adicional ===== */
+Object.assign(P,{fCompany:"",fGroup:"",fResp:"",pages:{sup:1,req:1},split:true,auto:true,lastUpdate:null,alerts:false,timer:null,newModal:null});
+try{P.alerts=localStorage.getItem("fdc_alerts")==="1";P.auto=localStorage.getItem("fdc_auto")!=="0"}catch(e){}
+const SECTIONS=[{k:"sup",title:"Tickets de soporte"},{k:"req",title:"Requerimientos"}];
+const isReq=t=>/requer/i.test(t.type||"");
+const fmtDateSec=d=>`${fmtDate(d)}:${pad(new Date(d).getSeconds())}`;
+function ageHours(t){return (Date.now()-new Date(t.created_at))/3600000}
+function fmtAge(t){const h=Math.max(0,Math.floor(ageHours(t)));const d=Math.floor(h/24);return d?`${d}d ${h%24}h`:`${h}h`}
+function ageColor(t){const h=ageHours(t);return h>=24*7?"var(--bad)":h>=24*3?"var(--warn)":"inherit"}
+
+/* Columnas del panel: clave, título, tipo (para el sentido por defecto), valor para ordenar */
+const sumOf=t=>{const c=convCache.get(t.id);return c&&c.convs?summarize(c.convs):null};
+const reqOf=t=>t.requester?.name||t.requester?.email||String(t.requester_id||"");
+const PCOLS=[
+  ["id","#","num",t=>t.id],
+  ["subject","Asunto","text",t=>t.subject||""],
+  ["company","Empresa","text",t=>t.company_id?(cache.companies[t.company_id]??null):null],
+  ["status","Estado","text",t=>STATUS[t.status]||String(t.status)],
+  ["priority","Prioridad","num",t=>t.priority],
+  ["requester","Solicitante","text",reqOf],
+  ["resp","Responsable","text",t=>t.responder_id?(cache.agents?.[t.responder_id]??null):null],
+  ["group","Grupo","text",t=>groupOf(t)||null],
+  ["updated","Actualizado","date",t=>t.updated_at],
+  ["age","Tiempo","num",t=>ageHours(t)],
+  ["replies","Respuestas","num",t=>{const s=sumOf(t);return s?s.total:null}],
+  ["last","Última respuesta","date",t=>{const s=sumOf(t);return s&&s.last?s.last.created_at:null}],
+];
+function cmpVals(a,b,type){
+  if(type==="num")return a-b;
+  if(type==="date")return new Date(a)-new Date(b);
+  return String(a).localeCompare(String(b),"es",{sensitivity:"base",numeric:true});
+}
+/* Base: tickets en los estados elegidos. Filtros: búsqueda + desplegables */
+const baseList=()=>(P.tickets||[]).filter(t=>P.statuses.has(String(t.status)));
+function applyFilters(l,{skipResp=false}={}){
+  if(P.fCompany)l=l.filter(t=>P.fCompany==="none"?!t.company_id:String(t.company_id)===P.fCompany);
+  if(P.fGroup)l=l.filter(t=>P.fGroup==="none"?!t.group_id:String(t.group_id)===P.fGroup);
+  if(!skipResp&&P.fResp)l=l.filter(t=>P.fResp==="none"?!t.responder_id:String(t.responder_id)===P.fResp);
+  if(P.q){const q=P.q.toLowerCase();l=l.filter(t=>(t.subject+" "+reqOf(t)+" "+(t.requester?.email||"")+" "+t.id+" "+companyOf(t)+" "+respOf(t)+" "+groupOf(t)+" "+(t.type||"")).toLowerCase().includes(q))}
+  return l;
+}
+function sortList(l){
+  const col=PCOLS.find(c=>c[0]===P.sortKey)||PCOLS[8];
+  const dir=P.sortDir==="asc"?1:-1;
+  // Los valores vacíos o aún no cargados siempre van al final
+  return l.sort((a,b)=>{const x=col[3](a),y=col[3](b);const nx=x===null||x===""||x===undefined,ny=y===null||y===""||y===undefined;
+    if(nx&&ny)return new Date(b.updated_at)-new Date(a.updated_at);if(nx)return 1;if(ny)return -1;
+    return dir*cmpVals(x,y,col[2])||(new Date(b.updated_at)-new Date(a.updated_at))});
+}
+function panelList(){return sortList(applyFilters(baseList()))}
+function sectionLists(){
+  const all=panelList(),base=baseList();
+  if(!P.split)return [{k:"sup",title:"Tickets",list:all,total:base.length}];
+  return SECTIONS.map(s=>({...s,list:all.filter(t=>(s.k==="req")===isReq(t)),total:base.filter(t=>(s.k==="req")===isReq(t)).length}));
+}
+
+function renderPanel(){
+  if(!P.statuses)P.statuses=new Set(Object.keys(STATUS).filter(k=>k!=="4"&&k!=="5"));
+  if(!P.since)P.since=monthsAgo(6);
+  const notifOk=("Notification" in window);
+  $("#main").innerHTML=`
+  <div class="pTop">
+    <div><div class="pTitle">Seguimiento de Tickets Pendientes <span class="ver" title="Publicada el ${APP_BUILD}">${APP_VERSION}</span></div><div class="muted" id="pLast" style="font-size:12px">${P.lastUpdate?"Última actualización: "+fmtDateSec(P.lastUpdate):"Sin actualizar todavía"}</div></div>
+    <div class="pTopBtns">
+      <button class="pill ${P.auto?"on":""}" id="pAuto" title="Recarga los tickets cada 5 minutos">⟳ Actualización automática cada 5 min${P.auto?"":" (pausada)"}</button>
+      <button class="pill ${P.alerts?"on":""}" id="pAlerts" ${notifOk?"":"disabled title='Tu navegador no admite notificaciones'"}>🔔 ${P.alerts?"Avisos activos":"Activar avisos"}</button>
+      <button class="primary" id="pNow">⟳ Actualizar ahora</button>
+    </div>
+  </div>
+  <div class="pGrid">
+   <aside class="card pSide"><div class="pSideH">Responsables con más pendientes</div><div id="pSide"><div class="muted" style="padding:8px 0">—</div></div></aside>
+   <section style="min-width:0">
+    <div class="card" style="padding:12px;margin-bottom:12px"><div class="bar" style="margin:0">
+      <label style="flex:1;min-width:220px">Buscar<input id="pQ" placeholder="🔍 asunto, cliente, solicitante, responsable…" value="${esc(P.q)}"></label>
+      <label>Cliente<select id="fCo"><option value="">Cliente: todos</option></select></label>
+      <label>Grupo<select id="fGr"><option value="">Grupo: todos</option></select></label>
+      <label>Responsable<select id="fRe"><option value="">Responsable: todos</option></select></label>
+      <button class="primary" id="pXlsx" style="align-self:flex-end">⬇ Exportar a Excel</button>
+      <button id="pCsv" style="align-self:flex-end">Exportar CSV</button>
+    </div>
+    <div class="bar" style="margin:10px 0 0">
+      <label>Estados<span id="pSt" style="display:flex;gap:10px;flex-wrap:wrap;padding:6px 0"></span></label>
+      <label>Actualizados desde<input id="pSince" size="11" placeholder="DD/MM/AAAA" value="${isoToDMY(P.since)}"></label>
+      <label>Por página<select id="pPer"><option>10</option><option>25</option><option>50</option><option>100</option></select></label>
+      <label style="flex-direction:row;align-items:center;gap:6px;align-self:flex-end;padding-bottom:6px"><input type="checkbox" id="pSplit" ${P.split?"checked":""}> Separar requerimientos</label>
+      <label style="flex-direction:row;align-items:center;gap:6px;align-self:flex-end;padding-bottom:6px"><input type="checkbox" id="pNotes" ${P.includeNotes?"checked":""}> Contar notas privadas</label>
+      <button id="pLoad" style="align-self:flex-end">Aplicar fecha</button>
+      <button id="pAll" style="align-self:flex-end" title="Consulta la conversación de todos los tickets filtrados (1 petición por ticket)">Cargar respuestas de todos</button>
+    </div></div>
+    <div class="status" id="pProg" style="margin-bottom:8px"></div>
+    <div id="pRetry" style="display:none;margin-bottom:10px;padding:8px 12px;border-radius:8px;border:1px solid color-mix(in srgb,var(--warn) 40%,transparent);background:color-mix(in srgb,var(--warn) 10%,transparent);color:var(--warn);font-size:13px"></div>
+    <div id="pErr"></div>
+    <div id="pOut"><div class="card"><div class="empty">${$("#connStatus").dataset.ok?"Cargando…":"Conéctate para ver el panel."}</div></div></div>
+   </section>
+  </div>`;
+  $("#pSt").innerHTML=Object.entries(STATUS).map(([k,v])=>`<label style="flex-direction:row;gap:4px;color:var(--ink);font-size:13px"><input type="checkbox" value="${k}" ${P.statuses.has(k)?"checked":""}>${esc(v)}</label>`).join("");
+  $("#pPer").value=P.per;
+  const resetPages=()=>{P.pages={sup:1,req:1}};
+  $("#pSt").onchange=()=>{P.statuses=new Set([...$("#pSt").querySelectorAll("input:checked")].map(i=>i.value));resetPages();drawPanel()};
+  $("#pPer").onchange=()=>{P.per=+$("#pPer").value;resetPages();drawPanel()};
+  $("#pQ").oninput=()=>{P.q=$("#pQ").value;resetPages();drawPanel()};
+  $("#fCo").onchange=()=>{P.fCompany=$("#fCo").value;resetPages();drawPanel()};
+  $("#fGr").onchange=()=>{P.fGroup=$("#fGr").value;resetPages();drawPanel()};
+  $("#fRe").onchange=()=>{P.fResp=$("#fRe").value;resetPages();drawPanel()};
+  $("#pSplit").onchange=()=>{P.split=$("#pSplit").checked;resetPages();drawPanel()};
+  $("#pNotes").onchange=()=>{P.includeNotes=$("#pNotes").checked;drawPanel()};
+  $("#pLoad").onclick=()=>{const v=parseDMY($("#pSince").value);if(!v){$("#pErr").innerHTML='<div class="err">Fecha inválida. Usa el formato DD/MM/AAAA.</div>';return}P.since=v;P.tickets=null;resetPages();loadPanel()};
+  $("#pNow").onclick=()=>loadPanel();
+  $("#pAuto").onclick=()=>{P.auto=!P.auto;try{localStorage.setItem("fdc_auto",P.auto?"1":"0")}catch(e){}setupAuto();renderPanel()};
+  $("#pAlerts").onclick=toggleAlerts;
+  $("#pAll").onclick=loadAllConversations;
+  $("#pCsv").onclick=exportCsv;
+  $("#pXlsx").onclick=exportXlsx;
+  if(!$("#connStatus").dataset.ok)return;
+  if(P.tickets)drawPanel();else loadPanel();
+}
+
+/* ----- carga, actualización automática y avisos ----- */
+function setupAuto(){
+  clearInterval(P.timer);P.timer=null;
+  if(P.auto)P.timer=setInterval(()=>{if($("#connStatus").dataset.ok&&!P.loading)loadPanel({silent:true})},5*60*1000);
+}
+async function loadPanel({silent=false}={}){
+  if(P.loading)return;P.loading=true;const e=$("#pErr");if(e)e.innerHTML="";
+  const all=[];let page=1,more=true,capped=false,failed=false;
+  const since=isoLocalStart(P.since||monthsAgo(6));
+  const prog=m=>{const n=$("#pProg");if(n)n.textContent=m};
+  try{
+    while(more){
+      prog(`${silent?"Actualización automática: ":""}cargando tickets… página ${page} (${all.length} tickets)`);
+      const r=await api(`/api/v2/tickets?per_page=100&page=${page}&updated_since=${encodeURIComponent(since)}&order_by=updated_at&order_type=desc&include=requester`);
+      if(!r.ok){const e=$("#pErr");if(e)e.innerHTML=`<div class="err">${esc(errText(r))}</div>`;failed=true;break}
+      all.push(...r.data);more=r.hasNext&&r.data.length>0;page++;
+      if(more&&page>P.maxPages){capped=true;break}
+    }
+  }finally{P.loading=false}
+  if(failed&&P.tickets&&silent)return; // si falla una recarga automática, se conserva lo anterior
+  P.tickets=all;P.capped=capped;P.lastUpdate=new Date();
+  const l=$("#pLast");if(l)l.textContent="Última actualización: "+fmtDateSec(P.lastUpdate);
+  prog("Cargando nombres de empresas y responsables…");
+  await ensureNames(baseList());
+  checkNewTickets();
+  drawPanel();
+}
+function seenKey(){return "fdc_seen_"+(normDomain($("#domain").value)||"")}
+function checkNewTickets(){
+  const cur=baseList();let seen=null;
+  try{const v=localStorage.getItem(seenKey());if(v)seen=new Set(JSON.parse(v))}catch(e){}
+  const ids=cur.map(t=>t.id);
+  if(!seen){try{localStorage.setItem(seenKey(),JSON.stringify(ids))}catch(e){}return} // primera vez: solo se recuerda
+  const nuevos=cur.filter(t=>!seen.has(t.id)).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  try{localStorage.setItem(seenKey(),JSON.stringify([...new Set([...seen,...ids])].slice(-5000)))}catch(e){}
+  if(!nuevos.length)return;
+  showNewModal(nuevos);
+  if(P.alerts&&"Notification" in window&&Notification.permission==="granted"){
+    try{const n=new Notification(nuevos.length===1?"Llegó 1 ticket nuevo":`Llegaron ${nuevos.length} tickets nuevos`,{body:nuevos.slice(0,3).map(t=>`#${t.id} — ${t.subject}`).join("\n"),tag:"fdc-nuevos"});n.onclick=()=>{window.focus();n.close()}}catch(e){}
+  }
+  beep();
+}
+function beep(){if(!P.alerts)return;try{const c=new (window.AudioContext||window.webkitAudioContext)();const o=c.createOscillator(),g=c.createGain();o.frequency.value=880;g.gain.value=.08;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.25)}catch(e){}}
+function showNewModal(list){
+  const m=$("#newModal");
+  m.querySelector(".nmT").textContent=list.length===1?"¡Llegó 1 ticket nuevo!":`¡Llegaron ${list.length} tickets nuevos!`;
+  m.querySelector(".nmL").innerHTML=list.slice(0,6).map(t=>`<li><a href="#" data-open="${t.id}">#${t.id}</a> — ${esc(t.subject)}${t.company_id?` (${esc(companyOf(t))})`:""}</li>`).join("")+(list.length>6?`<li class="muted">… y ${list.length-6} más</li>`:"");
+  m.querySelectorAll("a[data-open]").forEach(a=>a.onclick=e=>{e.preventDefault();m.style.display="none";openTicket(a.dataset.open)});
+  m.style.display="flex";
+}
+async function toggleAlerts(){
+  if(!("Notification" in window))return;
+  if(P.alerts){P.alerts=false}
+  else{
+    let perm=Notification.permission;
+    if(perm==="default")perm=await Notification.requestPermission();
+    P.alerts=perm==="granted";
+    if(perm==="denied")$("#pProg").textContent="El navegador tiene bloqueadas las notificaciones para esta página. Actívalas en el candado de la barra de direcciones. Los avisos dentro de la página siguen funcionando.";
+  }
+  try{localStorage.setItem("fdc_alerts",P.alerts?"1":"0")}catch(e){}
+  const b=$("#pAlerts");if(b){b.classList.toggle("on",P.alerts);b.textContent="🔔 "+(P.alerts?"Avisos activos":"Activar avisos")}
+  if(P.alerts)beep();
+}
+
+/* ----- ordenar, cargar respuestas ----- */
+async function sortPanelBy(key){
+  const col=PCOLS.find(c=>c[0]===key);
+  if(P.sortKey===key)P.sortDir=P.sortDir==="asc"?"desc":"asc";
+  else{P.sortKey=key;P.sortDir=(col[2]==="text")?"asc":"desc"}
+  P.pages={sup:1,req:1};
+  if(["company","resp","group"].includes(key)){$("#pProg").textContent="Cargando nombres para ordenar…";await ensureNames(baseList())}
+  drawPanel();
+}
+async function loadAllConversations(){
+  const l=panelList().filter(t=>!(convCache.get(t.id)?.convs&&convCache.get(t.id).updated_at===t.updated_at));
+  if(!l.length){$("#pProg").textContent="Las respuestas de todos los tickets ya están cargadas.";return}
+  const btn=$("#pAll");btn.disabled=true;let n=0;
+  await pool(l,async t=>{await getConversations(t);n++;const pg=$("#pProg");if(pg)pg.textContent=`Cargando respuestas… ${n}/${l.length}`},2);
+  btn.disabled=false;drawPanel();
+}
+
+/* ----- dibujo ----- */
+function fillSelect(sel,opts,cur){
+  const s=$(sel);if(!s)return;const first=s.options[0].outerHTML;
+  s.innerHTML=first+opts.map(([v,l,n])=>`<option value="${esc(v)}">${esc(l)} (${n})</option>`).join("");
+  s.value=opts.some(o=>String(o[0])===cur)?cur:"";
+}
+function drawFiltersAndSide(){
+  const base=baseList();
+  const count=(fn)=>{const m=new Map();base.forEach(t=>{const [k,l]=fn(t);const x=m.get(k)||[k,l,0];x[2]++;m.set(k,x)});return [...m.values()].sort((a,b)=>String(a[1]).localeCompare(String(b[1]),"es"))};
+  fillSelect("#fCo",count(t=>t.company_id?[String(t.company_id),companyOf(t)]:["none","(Sin empresa)"]),P.fCompany);
+  fillSelect("#fGr",count(t=>t.group_id?[String(t.group_id),groupOf(t)]:["none","(Sin grupo)"]),P.fGroup);
+  fillSelect("#fRe",count(t=>t.responder_id?[String(t.responder_id),respOf(t)]:["none","(Sin asignar)"]),P.fResp);
+  // Ranking: respeta cliente/grupo/búsqueda pero no el filtro de responsable
+  const l=applyFilters(base,{skipResp:true});const m=new Map();
+  l.forEach(t=>{const k=t.responder_id?String(t.responder_id):"none";const x=m.get(k)||{k,name:t.responder_id?respOf(t):"Sin asignar",n:0};x.n++;m.set(k,x)});
+  const rank=[...m.values()].sort((a,b)=>b.n-a.n||a.name.localeCompare(b.name,"es"));const max=rank[0]?.n||1;
+  const side=$("#pSide");if(!side)return;
+  side.innerHTML=rank.length?rank.map(r=>`<div class="rk ${P.fResp===r.k?"on":""}" data-k="${esc(r.k)}" title="Filtrar por ${esc(r.name)}"><div class="rkH"><span>${esc(r.name)}</span><b>${r.n}</b></div><div class="rkB"><i style="width:${Math.max(4,r.n/max*100)}%"></i></div></div>`).join("")+(P.fResp?`<button id="rkClear" style="margin-top:8px;width:100%">Ver todos los responsables</button>`:""):'<div class="muted">Sin tickets.</div>';
+  side.querySelectorAll(".rk").forEach(d=>d.onclick=()=>{P.fResp=P.fResp===d.dataset.k?"":d.dataset.k;P.pages={sup:1,req:1};drawPanel()});
+  const c=$("#rkClear");if(c)c.onclick=()=>{P.fResp="";drawPanel()};
+}
+let drawToken=0;
+async function drawPanel(){
+  const out=$("#pOut");if(!out||!P.tickets)return;
+  drawFiltersAndSide();
+  const secs=sectionLists();
+  const total=secs.reduce((a,s)=>a+s.list.length,0);
+  const pending=panelList().filter(t=>!convCache.get(t.id)?.convs).length;
+  $("#pProg").innerHTML=`${total} tickets con los filtros actuales (de ${P.tickets.length} actualizados desde ${esc(isoToDMY(P.since))})`+
+    (P.capped?` · <b style="color:var(--warn)">Se cargaron solo los ${P.tickets.length} más recientes; acota la fecha para ver todos.</b>`:"")+
+    (["replies","last"].includes(P.sortKey)&&pending?` · <b style="color:var(--warn)">${pending} tickets aún sin respuestas cargadas van al final; pulsa «Cargar respuestas de todos» para ordenarlos todos.</b>`:"");
+  const arrow=k=>P.sortKey===k?(P.sortDir==="asc"?" ▲":" ▼"):"";
+  const thStyle={replies:"text-align:center",last:"min-width:300px",age:"white-space:nowrap"};
+  const visible=[];
+  out.innerHTML=secs.map(s=>{
+    const pages=Math.max(1,Math.ceil(s.list.length/P.per));
+    if((P.pages[s.k]||1)>pages)P.pages[s.k]=pages;
+    const pg=P.pages[s.k]||1;
+    const rows=s.list.slice((pg-1)*P.per,pg*P.per);visible.push(...rows);
+    return `<div class="card" style="margin-bottom:14px"><div class="secH"><span>${esc(s.title)}</span><span class="muted">${s.list.length} de ${s.total} tickets</span></div>`+
+     (rows.length?`<div style="overflow-x:auto"><table data-nosort><thead><tr>${PCOLS.map(c=>`<th class="sortable${P.sortKey===c[0]?" sorted":""}" data-k="${c[0]}" style="${thStyle[c[0]]||""}" title="Ordenar por ${esc(c[1])}">${esc(c[1])}${arrow(c[0])}</th>`).join("")}</tr></thead><tbody>`+
+     rows.map(t=>`<tr class="click" data-id="${t.id}"><td class="mono"><a href="#" class="tid">#${t.id}</a></td><td>${esc(t.subject)}</td>
+      <td id="co-${t.id}">${esc(companyOf(t))}</td>
+      <td><span class="chip s${t.status}">${esc(STATUS[t.status]||t.status)}</span></td>
+      <td><span class="chip p${t.priority}">${esc(PRIORITY[t.priority]||t.priority)}</span></td>
+      <td>${esc(reqOf(t))}</td>
+      <td id="rs-${t.id}">${t.responder_id?esc(respOf(t)):'<span class="muted">Sin asignar</span>'}</td>
+      <td id="gr-${t.id}">${esc(groupOf(t)||"—")}</td>
+      <td class="muted" style="white-space:nowrap">${fmtDate(t.updated_at)}</td>
+      <td style="white-space:nowrap;font-weight:600;color:${ageColor(t)}" title="Creado el ${fmtDate(t.created_at)}">${fmtAge(t)}</td>
+      <td style="text-align:center" id="rc-${t.id}"><span class="muted">…</span></td>
+      <td id="rl-${t.id}" class="lastCol"><span class="muted">Cargando…</span></td></tr>`).join("")+
+     `</tbody></table></div><div class="pager"><span class="muted">Página ${pg}/${pages}</span><button data-sec="${s.k}" data-d="-1" ${pg<=1?"disabled":""}>‹ Anterior</button><button data-sec="${s.k}" data-d="1" ${pg>=pages?"disabled":""}>Siguiente ›</button></div>`
+     :`<div class="empty">No hay tickets que coincidan con tu búsqueda.</div>`)+`</div>`;
+  }).join("");
+  bindRows(out);
+  out.querySelectorAll("a.tid").forEach(a=>a.onclick=e=>e.preventDefault());
+  out.querySelectorAll("th[data-k]").forEach(th=>th.onclick=()=>sortPanelBy(th.dataset.k));
+  out.querySelectorAll("button[data-sec]").forEach(b=>b.onclick=()=>{P.pages[b.dataset.sec]=(P.pages[b.dataset.sec]||1)+ +b.dataset.d;drawPanel()});
+  const my=++drawToken;
+  visible.forEach(t=>{if(convCache.has(t.id)&&convCache.get(t.id).updated_at===t.updated_at)fillConv(t)});
+  const names=ensureNames(visible).then(()=>{if(my!==drawToken)return;visible.forEach(t=>{const a=document.getElementById("co-"+t.id),b=document.getElementById("rs-"+t.id);if(a)a.textContent=companyOf(t);if(b)b.innerHTML=t.responder_id?esc(respOf(t)):'<span class="muted">Sin asignar</span>'})});
+  await Promise.all([names,processConvs(visible,my)]);
+  reprocessFailed(visible,my,1);
+}
+/* Rellena las columnas Respuestas / Última respuesta de un ticket */
+function fillConv(t){
+  const c=convCache.get(t.id),rc=document.getElementById("rc-"+t.id),rl=document.getElementById("rl-"+t.id);if(!rc)return;
+  if(c&&c.error&&c.retry){rc.innerHTML='<span title="En proceso">⏳</span>';rl.innerHTML='<span style="color:var(--warn)">⏳ En proceso: Freshdesk está limitando las consultas en este momento. Se volverá a consultar automáticamente.</span>';return}
+  if(!c||c.error){rc.innerHTML='<span class="muted">—</span>';rl.innerHTML=`<span class="muted">${esc(c?.error||"Sin datos")}</span> <button class="convRetry" data-id="${t.id}" style="font-size:12px;padding:2px 8px">Reintentar</button>`;
+    const b=rl.querySelector(".convRetry");if(b)b.onclick=async e=>{e.stopPropagation();convCache.delete(t.id);rc.innerHTML='<span>⏳</span>';rl.innerHTML='<span style="color:var(--warn)">⏳ En proceso…</span>';await getConversations(t);fillConv(t)};return}
+  const s=summarize(c.convs);
+  rc.innerHTML=`<b style="font-size:15px">${s.total}</b><div class="muted" style="font-size:11px;white-space:nowrap">${s.ag} agente · ${s.cli} cliente</div>`;
+  if(!s.last){rl.innerHTML='<span class="muted">Sin respuestas todavía</span>';return}
+  rl.innerHTML=`<div class="lastMeta">${esc(who(s.last))}${s.last.private?" · nota privada":""} · ${fmtDate(s.last.created_at)}</div><div class="lastBox" tabindex="0">${esc(replyText(s.last.body,s.last.body_text))}</div>`;
+  const box=rl.querySelector(".lastBox");box.onclick=e=>e.stopPropagation(); // desplazar/seleccionar sin abrir el ticket
+}
+/* Texto completo de una respuesta, sin el correo citado ni firmas de reenvío */
+function replyText(html,text){
+  const doc=new DOMParser().parseFromString(html||"","text/html");
+  doc.querySelectorAll("blockquote,.freshdesk_quote,.gmail_quote,.gmail_extra,style,script").forEach(n=>n.remove());
+  doc.querySelectorAll("br").forEach(b=>b.replaceWith("\n"));
+  const blocks=[...doc.body.querySelectorAll("p,div,li,h1,h2,h3,h4,td")].filter(n=>!n.querySelector("p,div,li,td"));
+  let parts=blocks.map(b=>b.textContent.replace(/[ \t\u00a0]+/g," ").trim()).filter(Boolean);
+  if(!parts.length)parts=(text||doc.body.textContent||"").split(/\n\s*\n/).map(x=>x.replace(/\s+/g," ").trim()).filter(Boolean);
+  return parts.join("\n")||"(sin texto)";
+}
+async function processConvs(list,my){
+  const queue=[...list];
+  const worker=async()=>{while(queue.length&&my===drawToken){const t=queue.shift();await getConversations(t);if(my===drawToken)fillConv(t)}};
+  await Promise.all([worker(),worker()]);
+}
+/* Reprocesa SOLO los tickets que fallaron por límite/red, con esperas crecientes */
+const REPROCESS_WAITS=[15,30,45,60,60,90,120,120];
+function reprocessFailed(list,my,round){
+  if(my!==drawToken)return;
+  const failed=list.filter(t=>convCache.get(t.id)?.retry);
+  const note=$("#pRetry");
+  if(!failed.length){if(note)note.style.display="none";return}
+  if(round>REPROCESS_WAITS.length){
+    failed.forEach(t=>{const c=convCache.get(t.id);c.retry=false;c.error="No se pudo obtener la conversación tras varios intentos.";fillConv(t)});
+    if(note)note.style.display="none";return;
+  }
+  let left=REPROCESS_WAITS[round-1];
+  const tick=()=>{
+    if(my!==drawToken)return;
+    if(note){note.style.display="block";note.innerHTML=`⏳ <b>${failed.length} ticket${failed.length>1?"s":""} en proceso</b>: Freshdesk limitó algunas consultas. Se reprocesarán solo esos tickets en ${left} s (intento ${round} de ${REPROCESS_WAITS.length}).`}
+    if(left--<=0){
+      if(note)note.innerHTML=`⏳ Reprocesando ${failed.length} ticket${failed.length>1?"s":""}…`;
+      failed.forEach(t=>convCache.delete(t.id));
+      processConvs(failed,my).then(()=>reprocessFailed(failed,my,round+1));
+      return;
+    }
+    setTimeout(tick,1000);
+  };
+  tick();
+}
+
+/* ----- exportar ----- */
+async function exportRows(){
+  const list=panelList();await ensureNames(list);
+  const head=["ID","Sección","Asunto","Empresa","Estado","Prioridad","Tipo","Solicitante","Responsable","Grupo","Creado","Actualizado","Tiempo","Respuestas","Respuestas agente","Respuestas cliente","Última respuesta de","Fecha última respuesta","Primer párrafo última respuesta"];
+  const rows=list.map(t=>{const s=sumOf(t);return [t.id,isReq(t)?"Requerimientos":"Tickets de soporte",t.subject,t.company_id?(cache.companies[t.company_id]||""):"",STATUS[t.status]||t.status,PRIORITY[t.priority]||t.priority,t.type||"",reqOf(t),t.responder_id?respOf(t):"Sin asignar",groupOf(t),fmtDate(t.created_at),fmtDate(t.updated_at),fmtAge(t),s?.total??"",s?.ag??"",s?.cli??"",s?.last?who(s.last):"",fmtDate(s?.last?.created_at),s?.last?firstParagraph(s.last.body,s.last.body_text):""]});
+  const sinDatos=list.filter(t=>!convCache.get(t.id)?.convs).length;
+  return {head,rows,sinDatos};
+}
+function saveBlob(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}
+function exportNote(n){if(n)$("#pProg").innerHTML+=` · Exportado; ${n} tickets sin respuestas cargadas (usa «Cargar respuestas de todos» para incluirlas).`}
+async function exportCsv(){
+  const {head,rows,sinDatos}=await exportRows();
+  const line=a=>a.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(";");
+  saveBlob(new Blob(["﻿"+[head,...rows].map(line).join("\r\n")],{type:"text/csv;charset=utf-8"}),`freshdesk_panel_${new Date().toISOString().slice(0,10)}.csv`);
+  exportNote(sinDatos);
+}
+function loadXlsxLib(){return window.XLSX?Promise.resolve():new Promise((ok,ko)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s.onload=ok;s.onerror=ko;document.head.appendChild(s)})}
+async function exportXlsx(){
+  const btn=$("#pXlsx");btn.disabled=true;
+  try{
+    const {head,rows,sinDatos}=await exportRows();
+    try{await loadXlsxLib()}catch(e){$("#pProg").textContent="No se pudo cargar el generador de Excel; se exporta como CSV.";btn.disabled=false;return exportCsv()}
+    const ws=XLSX.utils.aoa_to_sheet([head,...rows]);
+    ws["!cols"]=head.map((h,i)=>({wch:[8,18,50,24,14,10,14,22,20,20,17,17,9,10,10,10,18,17,80][i]||14}));
+    ws["!autofilter"]={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rows.length,c:head.length-1}})};
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Tickets");
+    XLSX.writeFile(wb,`seguimiento_tickets_${new Date().toISOString().slice(0,10)}.xlsx`);
+    exportNote(sinDatos);
+  }finally{btn.disabled=false}
+}
+
+/* ---------- tickets ---------- */
+const tState={page:1,per:30,filter:"",order:"created_at",dir:"desc",since:"",email:"",req:"",comp:""};
+function ticketRows(list){
+  if(!list.length)return '<div class="empty">No hay tickets.</div>';
+  return `<table><thead><tr><th>#</th><th>Asunto</th><th>Empresa</th><th>Estado</th><th>Prioridad</th><th>Solicitante</th><th>Responsable</th><th>Grupo</th><th>Actualizado</th></tr></thead><tbody>`+
+  list.map(t=>`<tr class="click" data-id="${t.id}"><td class="mono">${t.id}</td><td>${esc(t.subject)}</td>
+  <td>${esc(companyOf(t))}</td>
+  <td><span class="chip s${t.status}">${esc(STATUS[t.status]||t.status)}</span></td>
+  <td data-sort="${t.priority}"><span class="chip p${t.priority}">${esc(PRIORITY[t.priority]||t.priority)}</span></td>
+  <td>${esc(t.requester?.name||t.requester?.email||t.requester_id||"")}</td>
+  <td>${t.responder_id?esc(respOf(t)):'<span class="muted">Sin asignar</span>'}</td>
+  <td>${esc(groupOf(t)||"—")}</td>
+  <td class="muted">${fmtDate(t.updated_at)}</td></tr>`).join("")+"</tbody></table>";
+}
+function bindRows(root){root.querySelectorAll("tr[data-id]").forEach(tr=>tr.onclick=()=>openTicket(tr.dataset.id))}
+
+async function renderTickets(){
+  const m=$("#main");
+  m.innerHTML=`<div class="bar">
+   <label>Vista<select id="tFilter"><option value="">Todos (últimos 30 días)</option><option value="new_and_my_open">Nuevos y mis abiertos</option><option value="watching">Que sigo</option><option value="spam">Spam</option><option value="deleted">Eliminados</option></select></label>
+   <label>Actualizados desde<input id="tSince" size="11" placeholder="DD/MM/AAAA"></label>
+   <label>Ordenar por<select id="tOrder"><option value="created_at">Creación</option><option value="updated_at">Actualización</option><option value="due_by">Vencimiento</option><option value="status">Estado</option></select></label>
+   <label>Dirección<select id="tDir"><option value="desc">Desc</option><option value="asc">Asc</option></select></label>
+   <label>Por página<select id="tPer"><option>30</option><option>50</option><option>100</option></select></label>
+   <label>Email solicitante<input id="tEmail" size="18" placeholder="cliente@dominio.com"></label>
+   <label>ID solicitante<input id="tReq" size="9"></label>
+   <label>ID empresa<input id="tComp" size="9"></label>
+   <label>Ir a ticket #<span style="display:flex;gap:4px"><input id="tGo" size="8" placeholder="ID"><button id="tGoBtn">Abrir</button></span></label>
+   <button class="primary" id="tLoad" style="align-self:flex-end">Consultar</button>
+  </div><div id="tErr"></div><div class="card" id="tOut"><div class="empty">Pulsa «Consultar».</div></div>`;
+  $("#tFilter").value=tState.filter;$("#tOrder").value=tState.order;$("#tDir").value=tState.dir;$("#tPer").value=tState.per;$("#tSince").value=isoToDMY(tState.since);$("#tEmail").value=tState.email;$("#tReq").value=tState.req;$("#tComp").value=tState.comp;
+  $("#tGoBtn").onclick=()=>{const v=$("#tGo").value.trim();if(v)openTicket(v)};
+  $("#tLoad").onclick=()=>{tState.page=1;loadTickets()};
+  if($("#connStatus").dataset.ok)loadTickets();
+}
+async function loadTickets(){
+  Object.assign(tState,{filter:$("#tFilter").value,order:$("#tOrder").value,dir:$("#tDir").value,per:+$("#tPer").value,since:$("#tSince").value.trim()?parseDMY($("#tSince").value):"",email:$("#tEmail").value.trim(),req:$("#tReq").value.trim(),comp:$("#tComp").value.trim()});
+  if(tState.page>300){tState.page=300}
+  const q=new URLSearchParams({per_page:tState.per,page:tState.page,include:"requester",order_by:tState.order,order_type:tState.dir});
+  if(tState.filter)q.set("filter",tState.filter);
+  if($("#tSince").value.trim()&&!tState.since){$("#tErr").innerHTML='<div class="err">Fecha inválida. Usa el formato DD/MM/AAAA.</div>';return}
+  if(tState.since)q.set("updated_since",isoLocalStart(tState.since));
+  if(tState.email)q.set("email",tState.email);
+  if(tState.req)q.set("requester_id",tState.req);
+  if(tState.comp)q.set("company_id",tState.comp);
+  const out=$("#tOut");out.innerHTML='<div class="empty">Cargando…</div>';$("#tErr").innerHTML="";
+  const r=await api("/api/v2/tickets?"+q);
+  if(r.ok)await ensureNames(r.data);
+  if(!r.ok){out.innerHTML="";$("#tErr").innerHTML=`<div class="err">${esc(errText(r))}</div>`;return}
+  out.innerHTML=ticketRows(r.data)+`<div class="pager"><span class="muted">Página ${tState.page} · ${r.data.length} resultados · ${r.ms} ms</span>
+   <button id="tPrev" ${tState.page<=1?"disabled":""}>‹ Anterior</button><button id="tNext" ${r.hasNext&&tState.page<300?"":"disabled"}>Siguiente ›</button></div>
+   <p class="hint" style="padding:0 10px 10px">Sin «Actualizados desde», Freshdesk solo devuelve tickets creados en los últimos 30 días. Spam y eliminados solo aparecen con su vista. Máximo 300 páginas.</p>`;
+  bindRows(out);
+  $("#tPrev").onclick=()=>{tState.page--;loadTickets()};$("#tNext").onclick=()=>{tState.page++;loadTickets()};
+}
+
+/* ---------- búsqueda ---------- */
+const sState={entity:"tickets",query:"",page:1};
+function renderSearch(){
+  $("#main").innerHTML=`<div class="bar">
+   <label>Entidad<select id="sEnt"><option value="tickets">Tickets</option><option value="contacts">Contactos</option><option value="companies">Empresas</option></select></label>
+   <label style="flex:1;min-width:300px">Consulta (sintaxis del filtro de Freshdesk)<input id="sQ" placeholder="status:2 AND priority:4"></label>
+   <button class="primary" id="sGo" style="align-self:flex-end">Buscar</button></div>
+   <div class="bar" id="sPresets"></div>
+   <p class="hint">Campos de tickets: status, priority, type, tag, agent_id, group_id, created_at, updated_at, closed_at, due_by, fr_due_by y personalizados con prefijo cf_ (distinguen mayúsculas). Operadores: AND, OR, paréntesis, :&gt; y :&lt; para fechas y números, null para vacío. Fechas como 'AAAA-MM-DD'. Máximo 512 caracteres, 30 resultados por página y 10 páginas. Excluye archivados; los cambios recientes tardan unos minutos en indexarse.</p>
+   <div id="sErr"></div><div class="card" id="sOut"><div class="empty">Escribe una consulta.</div></div>`;
+  const presets=[["Abiertos urgentes","status:2 AND priority:4"],["Pendientes","status:3"],["Abiertos o pendientes de alta prioridad","(status:2 OR status:3) AND priority:3"],["Creados este mes",`created_at:>'${new Date().toISOString().slice(0,8)}01'`],["Vencidos sin resolver",`due_by:<'${new Date().toISOString().slice(0,10)}' AND (status:2 OR status:3)`],["Abiertos sin asignar","status:2 AND agent_id:null"],["Sin etiquetas","tag:null"],["Cerrados este mes",`closed_at:>'${new Date().toISOString().slice(0,8)}01'`]];
+  $("#sPresets").innerHTML=presets.map((p,i)=>`<button data-i="${i}">${esc(p[0])}</button>`).join("");
+  $("#sPresets").querySelectorAll("button").forEach(b=>b.onclick=()=>{$("#sEnt").value="tickets";$("#sQ").value=presets[b.dataset.i][1];sState.page=1;doSearch()});
+  $("#sEnt").value=sState.entity;$("#sQ").value=sState.query;
+  $("#sGo").onclick=()=>{sState.page=1;doSearch()};$("#sQ").onkeydown=e=>{if(e.key==="Enter"){sState.page=1;doSearch()}};
+}
+async function doSearch(){
+  sState.entity=$("#sEnt").value;sState.query=$("#sQ").value.trim();
+  if(!sState.query)return;
+  if(sState.query.length>510){$("#sErr").innerHTML='<div class="err">La consulta supera el máximo de 512 caracteres.</div>';return}
+  const out=$("#sOut");out.innerHTML='<div class="empty">Buscando…</div>';$("#sErr").innerHTML="";
+  const r=await api(`/api/v2/search/${sState.entity}?query=${encodeURIComponent('"'+sState.query.replace(/"/g,"'")+'"')}&page=${sState.page}`);
+  if(!r.ok){out.innerHTML="";$("#sErr").innerHTML=`<div class="err">${esc(errText(r))}</div>`;return}
+  const res=r.data.results||[],total=r.data.total||0,pages=Math.min(10,Math.ceil(total/30));
+  if(sState.entity==="tickets")await ensureNames(res);
+  out.innerHTML=(sState.entity==="tickets"?ticketRows(res):genericTable(sState.entity,res))+
+   `<div class="pager"><span class="muted">${total} resultados · página ${sState.page}/${pages||1} · ${r.ms} ms</span>
+   <button id="sPrev" ${sState.page<=1?"disabled":""}>‹ Anterior</button><button id="sNext" ${sState.page<pages?"":"disabled"}>Siguiente ›</button></div>`;
+  bindRows(out);bindGeneric(out,sState.entity,res);
+  $("#sPrev").onclick=()=>{sState.page--;doSearch()};$("#sNext").onclick=()=>{sState.page++;doSearch()};
+}
+
+/* ---------- entidades simples ---------- */
+const COLS={
+  contacts:[["ID","id"],["Nombre","name"],["Email","email"],["Teléfono",c=>c.phone||c.mobile],["Empresa",c=>c.company_id],["Activo",c=>c.active?"Sí":"No"],["Actualizado",c=>fmtDate(c.updated_at)]],
+  companies:[["ID","id"],["Nombre","name"],["Dominios",c=>(c.domains||[]).join(", ")],["Descripción","description"],["Actualizado",c=>fmtDate(c.updated_at)]],
+  agents:[["ID","id"],["Nombre",a=>a.contact?.name],["Email",a=>a.contact?.email],["Tipo","type"],["Ocasional",a=>a.occasional?"Sí":"No"],["Disponible",a=>a.available?"Sí":"No"],["Último acceso",a=>fmtDate(a.last_active_at)]],
+  groups:[["ID","id"],["Nombre","name"],["Descripción","description"],["Agentes",g=>(g.agent_ids||[]).length],["Actualizado",g=>fmtDate(g.updated_at)]],
+};
+const LABEL={contacts:"Contactos",companies:"Empresas",agents:"Agentes",groups:"Grupos"};
+function genericTable(ent,list){
+  if(!list.length)return '<div class="empty">Sin resultados.</div>';
+  const cols=COLS[ent];
+  return `<table><thead><tr>${cols.map(c=>`<th>${c[0]}</th>`).join("")}</tr></thead><tbody>`+
+   list.map((x,i)=>`<tr class="click" data-g="${i}">${cols.map(c=>`<td>${esc(typeof c[1]==="function"?c[1](x):x[c[1]])}</td>`).join("")}</tr>`).join("")+"</tbody></table>";
+}
+function bindGeneric(root,ent,list){root.querySelectorAll("tr[data-g]").forEach(tr=>tr.onclick=()=>openJson(`${LABEL[ent]||ent} · ${list[tr.dataset.g].id}`,list[tr.dataset.g],ent))}
+const gState={};
+function renderSimple(ent){
+  const st=gState[ent]||(gState[ent]={page:1,filter:""});
+  $("#main").innerHTML=`<div class="bar"><label>Filtrar en esta página<input id="gF" placeholder="texto…" value="${esc(st.filter)}"></label>
+   ${ent==="contacts"?'<label>Email exacto<input id="gEmail" placeholder="cliente@dominio.com"></label>':""}
+   <button class="primary" id="gLoad" style="align-self:flex-end">Consultar</button></div><div id="gErr"></div><div class="card" id="gOut"><div class="empty">Pulsa «Consultar».</div></div>`;
+  const go=async()=>{
+    const out=$("#gOut");out.innerHTML='<div class="empty">Cargando…</div>';$("#gErr").innerHTML="";
+    const q=new URLSearchParams({per_page:100,page:st.page});
+    const em=$("#gEmail")?.value.trim();if(em)q.set("email",em);
+    const r=await api(`/api/v2/${ent}?`+q);
+    if(!r.ok){out.innerHTML="";$("#gErr").innerHTML=`<div class="err">${esc(errText(r))}</div>`;return}
+    const all=r.data;const show=()=>{const f=$("#gF").value.toLowerCase();st.filter=f;const list=f?all.filter(x=>JSON.stringify(x).toLowerCase().includes(f)):all;
+      out.innerHTML=genericTable(ent,list)+`<div class="pager"><span class="muted">Página ${st.page} · ${list.length}/${all.length} · ${r.ms} ms</span><button id="gPrev" ${st.page<=1?"disabled":""}>‹ Anterior</button><button id="gNext" ${r.hasNext?"":"disabled"}>Siguiente ›</button></div>`;
+      bindGeneric(out,ent,list);$("#gPrev").onclick=()=>{st.page--;go()};$("#gNext").onclick=()=>{st.page++;go()}};
+    show();$("#gF").oninput=show;
+  };
+  $("#gLoad").onclick=()=>{st.page=1;go()};
+  if($("#connStatus").dataset.ok)go();
+}
+
+/* ---------- más recursos ---------- */
+const MORE=[
+ ["Tiempo registrado (todos)","/api/v2/time_entries",true],
+ ["Valoraciones de satisfacción","/api/v2/surveys/satisfaction_ratings",true],
+ ["Encuestas","/api/v2/surveys",false],
+ ["Campos de ticket","/api/v2/ticket_fields",false],
+ ["Formularios de ticket","/api/v2/ticket-forms",false],
+ ["Campos de contacto","/api/v2/contact_fields",false],
+ ["Campos de empresa","/api/v2/company_fields",false],
+ ["Roles","/api/v2/roles",false],
+ ["Productos","/api/v2/products",true],
+ ["Horarios laborales","/api/v2/business_hours",false],
+ ["Políticas SLA","/api/v2/sla_policies",false],
+ ["Buzones de email","/api/v2/email_configs",true],
+ ["Carpetas de respuestas predefinidas","/api/v2/canned_response_folders",false],
+ ["Categorías de soluciones (base de conocimiento)","/api/v2/solutions/categories",false],
+ ["Categorías de foros","/api/v2/discussions/categories",false],
+ ["Reglas de automatización: creación de tickets","/api/v2/automations/1/rules",true],
+ ["Reglas de automatización: actualización de tickets","/api/v2/automations/4/rules",true],
+ ["Reglas de automatización: basadas en tiempo","/api/v2/automations/3/rules",true],
+ ["Cuenta","/api/v2/account",false],
+ ["Configuración del helpdesk","/api/v2/settings/helpdesk",false],
+];
+const mState={i:0,page:1};
+function renderMore(){
+  $("#main").innerHTML=`<div class="bar"><label style="min-width:320px">Recurso<select id="mSel">${MORE.map((m,i)=>`<option value="${i}">${esc(m[0])} — ${esc(m[1])}</option>`).join("")}</select></label>
+   <button class="primary" id="mGo" style="align-self:flex-end">Consultar</button></div>
+   <p class="hint">Algunos recursos requieren permisos de administrador (403 si tu rol no los tiene). Cada consulta consume una petición del límite por minuto.</p>
+   <div id="mErr"></div><div class="card" id="mOut"><div class="empty">Elige un recurso.</div></div>`;
+  $("#mSel").value=mState.i;
+  const go=async()=>{
+    const [label,path,paged]=MORE[mState.i];
+    const out=$("#mOut");out.innerHTML='<div class="empty">Cargando…</div>';$("#mErr").innerHTML="";
+    const r=await api(path+(paged?`?per_page=100&page=${mState.page}`:""));
+    if(!r.ok){out.innerHTML="";$("#mErr").innerHTML=`<div class="err">${esc(errText(r))}</div>`;return}
+    const list=Array.isArray(r.data)?r.data:null;
+    if(list&&list.length&&typeof list[0]==="object"){
+      const keys=[...new Set(list.slice(0,20).flatMap(o=>Object.keys(o)))].filter(k=>{const v=list[0][k];return v===null||typeof v!=="object"}).slice(0,7);
+      out.innerHTML=`<table><thead><tr>${keys.map(k=>`<th>${esc(k)}</th>`).join("")}</tr></thead><tbody>${list.map((o,i)=>`<tr class="click" data-m="${i}">${keys.map(k=>`<td>${esc(typeof o[k]==="string"&&/T\d\d:\d\d/.test(o[k])?fmtDate(o[k]):o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table>`+
+       `<div class="pager"><span class="muted">${list.length} elementos · ${r.ms} ms</span>${paged?`<button id="mPrev" ${mState.page<=1?"disabled":""}>‹ Anterior</button><button id="mNext" ${r.hasNext?"":"disabled"}>Siguiente ›</button>`:""}</div>`;
+      out.querySelectorAll("tr[data-m]").forEach(tr=>tr.onclick=()=>openJson(`${label} · ${list[tr.dataset.m].id??tr.dataset.m}`,list[tr.dataset.m]));
+      if(paged){$("#mPrev").onclick=()=>{mState.page--;go()};$("#mNext").onclick=()=>{mState.page++;go()}}
+    }else out.innerHTML=`<pre>${esc(JSON.stringify(r.data,null,2))}</pre>`;
+  };
+  $("#mSel").onchange=()=>{mState.i=+$("#mSel").value;mState.page=1};
+  $("#mGo").onclick=()=>{mState.i=+$("#mSel").value;mState.page=1;go()};
+}
+
+/* ---------- consola ---------- */
+function renderConsole(){
+  $("#main").innerHTML=`<div class="bar"><select id="cM"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select>
+   <input id="cP" style="flex:1;min-width:300px" class="mono" value="/api/v2/tickets?per_page=5"><button class="primary" id="cGo">Enviar</button></div>
+   <div class="bar" id="cEx"></div>
+   <div class="grid2"><div><div class="muted" style="margin-bottom:4px">Cuerpo JSON (POST/PUT)</div><textarea id="cB" placeholder='{"status": 4}'></textarea>
+   <p class="hint">Las peticiones POST, PUT y DELETE modifican datos reales de tu portal. Se pide confirmación antes de enviarlas. Ojo: algunas acciones no siguen el patrón habitual (bulk_update usa POST y merge usa PUT). Los adjuntos (multipart) no están soportados en esta consola.</p></div>
+   <div class="card"><div class="muted" style="padding:8px 12px;border-bottom:1px solid var(--line)" id="cS">Respuesta</div><pre id="cR"></pre></div></div>
+   <div id="cConfirm"></div>`;
+  const ex=["/api/v2/agents/me","/api/v2/tickets?per_page=5&include=requester,stats,description","/api/v2/tickets/1?include=conversations,requester,company,stats","/api/v2/tickets/1/conversations","/api/v2/search/tickets?query=%22status:2%20AND%20priority:4%22","/api/v2/contacts/autocomplete?term=ana","/api/v2/companies/autocomplete?name=acme","/api/v2/agents/autocomplete?term=ana","/api/v2/ticket_fields","/api/v2/sla_policies"];
+  $("#cEx").innerHTML=ex.map(e=>`<button class="mono" data-p="${esc(e)}">${esc(e)}</button>`).join("");
+  $("#cEx").querySelectorAll("button").forEach(b=>b.onclick=()=>{$("#cM").value="GET";$("#cP").value=b.dataset.p});
+  const send=async()=>{
+    const method=$("#cM").value;let path=$("#cP").value.trim();if(!path.startsWith("/"))path="/"+path;
+    let body;if(method!=="GET"&&method!=="DELETE"&&$("#cB").value.trim()){try{body=JSON.stringify(JSON.parse($("#cB").value))}catch(e){$("#cS").textContent="JSON inválido: "+e.message;return}}
+    $("#cS").textContent="Enviando…";
+    const r=await api(path,{method,body});
+    const rl=r.headers.get("X-Up-x-ratelimit-account-remaining")||r.headers.get("X-Up-x-ratelimit-remaining");
+    $("#cS").innerHTML=`<b class="${r.ok?"ok":"bad"}" style="color:var(--${r.ok?"ok":"bad"})">${r.status}</b> · ${r.ms} ms${rl?` · límite restante ${esc(rl)}`:""}${r.link?` · <span class="mono">${esc(r.link)}</span>`:""}`;
+    $("#cR").textContent=typeof r.data==="string"?r.data:JSON.stringify(r.data,null,2);
+  };
+  $("#cGo").onclick=()=>{
+    const m=$("#cM").value;
+    if(m==="GET")return send();
+    $("#cConfirm").innerHTML=`<div class="err" style="margin-top:12px;display:flex;gap:10px;align-items:center">Vas a enviar ${esc(m)} a ${esc($("#cP").value)}. Esto modifica datos reales. <button id="cYes" class="primary">Confirmar</button><button id="cNo">Cancelar</button></div>`;
+    $("#cYes").onclick=()=>{$("#cConfirm").innerHTML="";send()};$("#cNo").onclick=()=>{$("#cConfirm").innerHTML=""};
+  };
+}
+
+/* ---------- detalle ---------- */
+let lastRaw=null;
+$("#dClose").onclick=()=>$("#drawer").classList.remove("on");
+document.addEventListener("keydown",e=>{if(e.key==="Escape")$("#drawer").classList.remove("on")});
+$("#dRaw").onclick=()=>{if(lastRaw)$("#dBody").innerHTML=`<pre>${esc(JSON.stringify(lastRaw,null,2))}</pre>`};
+function openJson(title,obj){lastRaw=obj;$("#dTitle").textContent=title;$("#dBody").innerHTML=`<pre>${esc(JSON.stringify(obj,null,2))}</pre>`;$("#drawer").classList.add("on")}
+function safeHtml(html){
+  const doc=new DOMParser().parseFromString(html||"","text/html");
+  doc.querySelectorAll("script,style,iframe,object,embed,link,meta,form").forEach(n=>n.remove());
+  doc.querySelectorAll("*").forEach(n=>{[...n.attributes].forEach(a=>{if(/^on/i.test(a.name)||/^\s*javascript:/i.test(a.value))n.removeAttribute(a.name)})});
+  return doc.body.innerHTML;
+}
+async function openTicket(id){
+  $("#dTitle").textContent="Ticket #"+id;$("#dBody").innerHTML='<div class="empty">Cargando…</div>';$("#drawer").classList.add("on");
+  const enc=encodeURIComponent(id);
+  let t=await api(`/api/v2/tickets/${enc}?include=requester,stats,company`);
+  let archived=false;
+  if(t.status===404){const a=await api(`/api/v2/tickets/archived/${enc}`);if(a.ok){t=a;archived=true}}
+  if(!t.ok){$("#dBody").innerHTML=`<div class="err">${esc(errText(t))}</div><button class="primary" id="dRetry">Reintentar</button>`;$("#dRetry").onclick=()=>openTicket(id);return}
+  const x=t.data;
+  if(x.company&&x.company.id)cache.companies[x.company.id]=x.company.name;
+  // Reutiliza la conversación ya cargada por el panel si el ticket no cambió
+  let convs=null,convErr="";
+  if(!archived){
+    convs=await getConversations(x);
+    if(!convs)convErr=convCache.get(x.id)?.error||"No se pudo cargar la conversación.";
+  }else convs=x.conversations||[];
+  await ensureNames([x]);
+  lastRaw={ticket:x,conversations:convs};
+  $("#dTitle").textContent=`#${x.id} · ${x.subject}`+(archived?" (archivado)":"");
+  const cf=Object.entries(x.custom_fields||{}).filter(([k,v])=>v!==null&&v!=="");
+  const assoc=[...new Set(x.associated_tickets_list||[])];
+  $("#dBody").innerHTML=`<div class="kv">
+   <div>Estado</div><div><span class="chip s${x.status}">${esc(STATUS[x.status]||x.status)}</span></div>
+   <div>Prioridad</div><div><span class="chip p${x.priority}">${esc(PRIORITY[x.priority]||x.priority)}</span></div>
+   <div>Tipo</div><div>${esc(x.type||"—")}</div>
+   <div>Canal</div><div>${esc(SOURCE[x.source]||x.source)}</div>
+   <div>Solicitante</div><div>${esc(x.requester?.name||"")} <span class="muted">${esc(x.requester?.email||"")}</span></div>
+   <div>Empresa</div><div>${esc(x.company?.name||companyOf(x))}</div>
+   <div>Responsable</div><div>${x.responder_id?esc(respOf(x)):'<span class="muted">Sin asignar</span>'}</div>
+   <div>Grupo</div><div>${esc(groupOf(x)||"—")}</div>
+   <div>Etiquetas</div><div>${(x.tags||[]).map(t=>`<span class="chip">${esc(t)}</span>`).join(" ")||"—"}</div>
+   <div>Creado</div><div>${fmtDate(x.created_at)}</div>
+   <div>Actualizado</div><div>${fmtDate(x.updated_at)}</div>
+   <div>Vence</div><div>${fmtDate(x.due_by)||"—"}</div>
+   <div>1ª respuesta vence</div><div>${fmtDate(x.fr_due_by)||"—"}</div>
+   ${x.stats?`<div>1ª respuesta</div><div>${fmtDate(x.stats.first_responded_at)||"—"}</div><div>Resuelto</div><div>${fmtDate(x.stats.resolved_at)||"—"}</div>`:""}
+   ${cf.map(([k,v])=>`<div>${esc(k.replace(/^cf_/,""))}</div><div>${esc(v)}</div>`).join("")}
+  </div>
+  ${x.association_type?`<h3 style="font-size:14px">Asociación: ${esc(ASSOC[x.association_type]||x.association_type)}</h3><div style="margin-bottom:14px">${assoc.map(i=>`<button data-open="${esc(i)}">#${esc(i)}</button>`).join(" ")||'<span class="muted">—</span>'}</div>`:""}
+  <h3 style="font-size:14px">Descripción</h3><div class="msg"><div class="mb">${safeHtml(x.description)}</div></div>
+  <h3 style="font-size:14px">Conversación (${convs?convs.length:"?"})</h3>
+  ${convs?convs.map(m=>`<div class="msg ${m.private?"private":""}"><div class="mh"><span>${m.incoming?"Cliente":"Agente"}${m.private?" · nota privada":""} · ${esc(m.from_email||cache.agents?.[m.user_id]||m.user_id)}</span><span>${fmtDate(m.created_at)}</span></div><div class="mb">${safeHtml(m.body)}</div></div>`).join(""):`<div class="err">${esc(convErr)}</div><button id="dConvRetry">Reintentar conversación</button>`}
+  <div id="dExtra" style="margin-top:14px"><button id="dMore">Ver tiempo registrado y satisfacción</button></div>`;
+  $("#dBody").querySelectorAll("button[data-open]").forEach(b=>b.onclick=()=>openTicket(b.dataset.open));
+  const cr=$("#dConvRetry");if(cr)cr.onclick=()=>{convCache.delete(x.id);openTicket(id)};
+  $("#dMore").onclick=async()=>{
+    $("#dExtra").innerHTML='<div class="muted">Cargando…</div>';
+    const te=await api(`/api/v2/tickets/${x.id}/time_entries`),sr=await api(`/api/v2/tickets/${x.id}/satisfaction_ratings`);
+    lastRaw.time_entries=te.ok?te.data:null;lastRaw.satisfaction_ratings=sr.ok?sr.data:null;
+    $("#dExtra").innerHTML=`<h3 style="font-size:14px">Tiempo registrado</h3>
+    ${te.ok?(te.data.length?`<div class="card" style="margin-bottom:14px"><table><thead><tr><th>Agente</th><th>Tiempo</th><th>Facturable</th><th>Fecha</th><th>Nota</th></tr></thead><tbody>${te.data.map(e=>`<tr><td>${esc(cache.agents?.[e.agent_id]||e.agent_id)}</td><td class="mono">${esc(e.time_spent)}</td><td>${e.billable?"Sí":"No"}</td><td>${fmtDate(e.executed_at)}</td><td>${esc(e.note||"")}</td></tr>`).join("")}</tbody></table></div>`:'<p class="muted">Sin registros.</p>'):`<p class="muted">${esc(errText(te).split("\n")[0])}</p>`}
+    <h3 style="font-size:14px">Satisfacción</h3>
+    ${sr.ok?(sr.data.length?sr.data.map(s=>`<div class="msg"><div class="mh"><span>Encuesta ${esc(s.survey_id)}</span><span>${fmtDate(s.created_at)}</span></div><div class="mb"><span class="mono">${esc(JSON.stringify(s.ratings))}</span>${s.feedback?`<div style="margin-top:6px">${esc(s.feedback)}</div>`:""}</div></div>`).join(""):'<p class="muted">Sin valoraciones.</p>'):`<p class="muted">${esc(errText(sr).split("\n")[0])}</p>`}`;
+  };
+}
+
+/* ---------- ordenar cualquier tabla por columna ---------- */
+function sortVal(td){
+  if(!td)return {t:"e",v:""};
+  const raw=(td.dataset.sort??td.textContent).trim();
+  if(raw===""||raw==="—"||raw==="…")return {t:"e",v:""};
+  let m=/^(\d{2})\/(\d{2})\/(\d{4})(?: (\d{2}):(\d{2}))?/.exec(raw);
+  if(m)return {t:"n",v:new Date(+m[3],+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0)).getTime()};
+  if(/^-?\d+([.,]\d+)?$/.test(raw))return {t:"n",v:parseFloat(raw.replace(",","."))};
+  if(/^\d{1,3}:\d{2}$/.test(raw)){const [h,mi]=raw.split(":");return {t:"n",v:+h*60+ +mi}}
+  return {t:"s",v:raw};
+}
+function enhanceTables(root){
+  root.querySelectorAll("table:not([data-sortable]):not([data-nosort])").forEach(tb=>{
+    tb.dataset.sortable="1";
+    const ths=[...(tb.tHead?.rows[0]?.cells||[])];
+    ths.forEach((th,i)=>{
+      th.classList.add("sortable");th.title="Ordenar por esta columna";
+      th.onclick=e=>{
+        e.stopPropagation();
+        const dir=th.dataset.dir==="asc"?"desc":"asc";
+        ths.forEach(h=>{delete h.dataset.dir;h.classList.remove("sorted");const a=h.querySelector(".arr");if(a)a.remove()});
+        th.dataset.dir=dir;th.classList.add("sorted");th.insertAdjacentHTML("beforeend",`<span class="arr">${dir==="asc"?" ▲":" ▼"}</span>`);
+        const body=tb.tBodies[0];if(!body)return;
+        const rows=[...body.rows];const k=dir==="asc"?1:-1;
+        rows.sort((ra,rb)=>{const a=sortVal(ra.cells[i]),b=sortVal(rb.cells[i]);
+          if(a.t==="e"&&b.t==="e")return 0;if(a.t==="e")return 1;if(b.t==="e")return -1;
+          if(a.t==="n"&&b.t==="n")return k*(a.v-b.v);
+          return k*String(a.v).localeCompare(String(b.v),"es",{sensitivity:"base",numeric:true})});
+        rows.forEach(r=>body.appendChild(r));
+      };
+    });
+  });
+}
+new MutationObserver(()=>enhanceTables(document.body)).observe(document.body,{childList:true,subtree:true});
+
+/* ---------- inicio ---------- */
+try{$("#appVer").textContent=APP_VERSION;$("#appVer").title="Publicada el "+APP_BUILD;document.title="Seguimiento de Tickets · "+APP_VERSION}catch(e){}
+(async()=>{
+  loadCreds();
+  if($("#domain").value&&$("#apikey").value)$("#connect").click();
+  render();
+})();
+</script>
+</body>
+</html>
